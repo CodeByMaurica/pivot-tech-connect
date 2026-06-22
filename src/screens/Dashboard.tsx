@@ -1,80 +1,96 @@
-import { useEffect, useState } from "react";
-
-type Job = {
-  id: number;
-  dateAdded: string;
-};
-
-type Alumni = {
-  id: number;
-  status: string;
-  needsSupport: string;
-};
-
 export default function Dashboard() {
-  const [jobsThisWeek, setJobsThisWeek] = useState(0);
-  const [alumniContacted, setAlumniContacted] = useState(0);
-  const [alumniEmployed, setAlumniEmployed] = useState(0);
-  const [seekingEmployment, setSeekingEmployment] = useState(0);
-  const [followUpsNeeded, setFollowUpsNeeded] = useState(0);
+  const jobs = JSON.parse(localStorage.getItem("pivotJobs") || "[]");
+  const savedJobs = JSON.parse(localStorage.getItem("pivotSavedJobs") || "[]");
+  const alumni = JSON.parse(localStorage.getItem("pivotAlumni") || "[]");
 
-  useEffect(() => {
-    const jobs: Job[] = JSON.parse(localStorage.getItem("pivotJobs") || "[]");
-    const alumni: Alumni[] = JSON.parse(
-      localStorage.getItem("pivotAlumni") || "[]"
-    );
+  const softwareJobs = jobs.filter(
+    (job: any) => job.category === "Software Development"
+  );
 
-    setJobsThisWeek(jobs.length);
-    setAlumniContacted(alumni.length);
-    setAlumniEmployed(
-      alumni.filter((person) => person.status === "Employed").length
-    );
-    setSeekingEmployment(
-      alumni.filter((person) => person.status === "Seeking Employment").length
-    );
-    setFollowUpsNeeded(
-      alumni.filter((person) => person.needsSupport === "Yes").length
-    );
-  }, []);
+  const cyberJobs = jobs.filter((job: any) => job.category === "Cybersecurity");
+
+  const dataJobs = jobs.filter((job: any) => job.category === "Data Analytics");
+
+  const remoteJobs = jobs.filter((job: any) => job.workType === "Remote");
 
   return (
-    <div>
-      <h1>Dashboard</h1>
+    <section>
+      <div className="page-header">
+        <div>
+          <h1>Dashboard</h1>
+          <p className="page-subtitle">
+            Welcome to Pivot Tech Connect — a student and alumni career portal
+            built for Pivot Technology School.
+          </p>
+        </div>
+      </div>
 
-      <p className="dashboard-subtitle">
-        Quick summary of job research and alumni outreach.
-      </p>
-
-      <button className="primary-btn" onClick={() => window.print()}>
-        Print / Save Report
-      </button>
+      <div className="hero-card">
+        <div>
+          <p className="eyebrow">Career Portal</p>
+          <h2>Connect students and alumni to real tech opportunities.</h2>
+          <p>
+            Track jobs, save opportunities, review career resources, and support
+            alumni job search progress in one simple place.
+          </p>
+        </div>
+      </div>
 
       <div className="stats-grid">
         <div className="stat-card">
-          <h2>{jobsThisWeek}</h2>
-          <p>Jobs Added This Week</p>
+          <h2>{jobs.length}</h2>
+          <p>Total Jobs</p>
         </div>
 
         <div className="stat-card">
-          <h2>{alumniContacted}</h2>
-          <p>Alumni Contacted</p>
+          <h2>{savedJobs.length}</h2>
+          <p>Saved Jobs</p>
         </div>
 
         <div className="stat-card">
-          <h2>{alumniEmployed}</h2>
-          <p>Alumni Employed</p>
+          <h2>{remoteJobs.length}</h2>
+          <p>Remote Jobs</p>
         </div>
 
         <div className="stat-card">
-          <h2>{seekingEmployment}</h2>
-          <p>Seeking Employment</p>
-        </div>
-
-        <div className="stat-card">
-          <h2>{followUpsNeeded}</h2>
-          <p>Follow-Ups Needed</p>
+          <h2>{alumni.length}</h2>
+          <p>Alumni Records</p>
         </div>
       </div>
-    </div>
+
+      <div className="resource-grid">
+        <div className="info-card">
+          <h2>Software Development</h2>
+          <p>
+            {softwareJobs.length} jobs saved for students learning React,
+            TypeScript, APIs, and full-stack development.
+          </p>
+        </div>
+
+        <div className="info-card">
+          <h2>Cybersecurity</h2>
+          <p>
+            {cyberJobs.length} opportunities for students interested in security
+            monitoring, help desk, SOC, and analyst roles.
+          </p>
+        </div>
+
+        <div className="info-card">
+          <h2>Data Analytics</h2>
+          <p>
+            {dataJobs.length} opportunities for students learning Excel, SQL,
+            dashboards, reporting, and data tools.
+          </p>
+        </div>
+
+        <div className="info-card">
+          <h2>Career Support</h2>
+          <p>
+            Use the portal to organize job leads, saved opportunities, alumni
+            follow-ups, and career preparation resources.
+          </p>
+        </div>
+      </div>
+    </section>
   );
 }
