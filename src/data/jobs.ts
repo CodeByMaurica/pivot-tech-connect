@@ -1,0 +1,32 @@
+export const jobOpenings = [
+  {
+    id: 1,
+    title: "Junior Software Developer",
+    company: "Sample Tech Company",
+    location: "Remote",
+    workType: "Remote",
+    source: "Indeed",
+    status: "Ready to Share",
+    applyLink: "https://www.indeed.com",
+  },
+  {
+    id: 2,
+    title: "Entry Level Data Analyst",
+    company: "Sample Analytics Group",
+    location: "Des Moines, IA",
+    workType: "Hybrid",
+    source: "State Job Board",
+    status: "Needs Review",
+    applyLink: "https://www.iowaworks.gov",
+  },
+  {
+    id: 3,
+    title: "Cybersecurity Analyst Trainee",
+    company: "Sample Security Services",
+    location: "Remote",
+    workType: "Remote",
+    source: "Indeed",
+    status: "Ready to Share",
+    applyLink: "https://www.indeed.com",
+  },
+];

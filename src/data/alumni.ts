@@ -1,0 +1,32 @@
+export const alumniCheckIns = [
+  {
+    id: 1,
+    name: "Alumni Check-In 1",
+    email: "alumni1@email.com",
+    phone: "555-000-0001",
+    employmentStatus: "Employed",
+    needsSupport: false,
+    lastContactDate: "June 2026",
+    notes: "Working as a junior developer. No support needed at this time.",
+  },
+  {
+    id: 2,
+    name: "Alumni Check-In 2",
+    email: "alumni2@email.com",
+    phone: "555-000-0002",
+    employmentStatus: "Seeking Employment",
+    needsSupport: true,
+    lastContactDate: "June 2026",
+    notes: "Needs resume review and help applying to software development roles.",
+  },
+  {
+    id: 3,
+    name: "Alumni Check-In 3",
+    email: "alumni3@email.com",
+    phone: "555-000-0003",
+    employmentStatus: "Needs Follow-Up",
+    needsSupport: true,
+    lastContactDate: "June 2026",
+    notes: "Requested interview preparation and career coaching support.",
+  },
+];
