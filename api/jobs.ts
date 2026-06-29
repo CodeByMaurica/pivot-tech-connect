@@ -3,12 +3,8 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 type AdzunaJob = {
   id: string;
   title: string;
-  company?: {
-    display_name?: string;
-  };
-  location?: {
-    display_name?: string;
-  };
+  company?: { display_name?: string };
+  location?: { display_name?: string };
   redirect_url: string;
   description?: string;
   salary_min?: number;
@@ -33,68 +29,36 @@ type Job = {
   datePosted: string;
 };
 
-const allowedStates = ["Iowa", "Tennessee", "Louisiana"];
+const states = ["Iowa", "Tennessee", "Louisiana"];
 
-const searchGroups = [
-  {
-    category: "Software Development",
-    terms: [
-      "software developer",
-      "frontend developer",
-      "react developer",
-      "junior software engineer",
-      "web developer",
-    ],
-  },
-  {
-    category: "Cybersecurity",
-    terms: [
-      "cybersecurity analyst",
-      "security analyst",
-      "soc analyst",
-      "information security analyst",
-    ],
-  },
-  {
-    category: "Data Analytics",
-    terms: [
-      "data analyst",
-      "business analyst data",
-      "reporting analyst",
-      "junior data analyst",
-    ],
-  },
+const searches = [
+  { category: "Software Development", term: "software developer" },
+  { category: "Software Development", term: "web developer" },
+  { category: "Software Development", term: "react developer" },
+  { category: "Cybersecurity", term: "cybersecurity analyst" },
+  { category: "Cybersecurity", term: "security analyst" },
+  { category: "Data Analytics", term: "data analyst" },
+  { category: "Data Analytics", term: "reporting analyst" },
 ];
 
-function detectState(location: string) {
-  if (location.toLowerCase().includes("iowa")) return "Iowa";
-  if (location.toLowerCase().includes("tennessee")) return "Tennessee";
-  if (location.toLowerCase().includes("louisiana")) return "Louisiana";
-  return "Remote";
-}
-
-function detectWorkType(title: string, description: string, location: string) {
-  const text = `${title} ${description} ${location}`.toLowerCase();
-
-  if (text.includes("remote")) return "Remote";
-  if (text.includes("hybrid")) return "Hybrid";
+function detectWorkType(text: string) {
+  const lower = text.toLowerCase();
+  if (lower.includes("remote")) return "Remote";
+  if (lower.includes("hybrid")) return "Hybrid";
   return "On-Site";
 }
 
-function detectLevel(title: string, description: string) {
-  const text = `${title} ${description}`.toLowerCase();
+function detectLevel(text: string) {
+  const lower = text.toLowerCase();
 
-  if (text.includes("intern")) return "Internship";
-  if (text.includes("apprentice") || text.includes("apprenticeship")) {
-    return "Apprenticeship";
-  }
-  if (text.includes("senior") || text.includes("sr.")) return "Senior Level";
-  if (text.includes("mid") || text.includes("intermediate")) return "Mid Level";
+  if (lower.includes("intern")) return "Internship";
+  if (lower.includes("apprentice")) return "Apprenticeship";
+  if (lower.includes("senior") || lower.includes("sr")) return "Senior Level";
+  if (lower.includes("mid")) return "Mid Level";
   if (
-    text.includes("junior") ||
-    text.includes("entry") ||
-    text.includes("associate") ||
-    text.includes("level 1")
+    lower.includes("junior") ||
+    lower.includes("entry") ||
+    lower.includes("associate")
   ) {
     return "Entry Level";
   }
@@ -102,15 +66,13 @@ function detectLevel(title: string, description: string) {
   return "Entry Level";
 }
 
-function detectOpportunityType(title: string, description: string) {
-  const text = `${title} ${description}`.toLowerCase();
+function detectOpportunityType(text: string) {
+  const lower = text.toLowerCase();
 
-  if (text.includes("contract")) return "Contract";
-  if (text.includes("intern")) return "Internship";
-  if (text.includes("apprentice") || text.includes("apprenticeship")) {
-    return "Apprenticeship";
-  }
-  if (text.includes("part-time")) return "Part-Time";
+  if (lower.includes("contract")) return "Contract";
+  if (lower.includes("intern")) return "Internship";
+  if (lower.includes("apprentice")) return "Apprenticeship";
+  if (lower.includes("part-time")) return "Part-Time";
 
   return "Full-Time";
 }
@@ -129,54 +91,56 @@ function formatSalary(job: AdzunaJob) {
   return "Not listed";
 }
 
-async function fetchAdzunaJobs(query: string, state: string, category: string) {
+async function fetchJobs(term: string, state: string, category: string) {
   const appId = process.env.ADZUNA_APP_ID;
   const appKey = process.env.ADZUNA_APP_KEY;
 
   if (!appId || !appKey) {
-    throw new Error("Missing ADZUNA_APP_ID or ADZUNA_APP_KEY");
+    throw new Error("Missing Adzuna environment variables.");
   }
 
   const params = new URLSearchParams({
-    app_id: appId,
-    app_key: appKey,
-    results_per_page: "10",
-    what: query,
+    app_id: appId.trim(),
+    app_key: appKey.trim(),
+    what: term,
     where: state,
-    content_type: "application/json",
-    sort_by: "date",
+    results_per_page: "10",
   });
 
-  const url = `https://api.adzuna.com/v1/api/jobs/us/search/1?${params.toString()}`;
+  const url = `https://api.adzuna.com/v1/api/jobs/us/search/1?${params}`;
 
   const response = await fetch(url);
+  const data = await response.json();
 
   if (!response.ok) {
-    throw new Error(`Adzuna request failed: ${response.status}`);
+    console.log("Adzuna failed:", {
+      status: response.status,
+      term,
+      state,
+      data,
+    });
+
+    return [];
   }
 
-  const data = await response.json();
   const results: AdzunaJob[] = data.results || [];
 
   return results.map((job): Job => {
     const title = job.title || "Untitled Job";
     const description = job.description || "No description available.";
     const location = job.location?.display_name || state;
-    const detectedState = detectState(location);
-    const workType = detectWorkType(title, description, location);
-    const level = detectLevel(title, description);
-    const opportunityType = detectOpportunityType(title, description);
+    const fullText = `${title} ${description} ${location}`;
 
     return {
       id: job.id,
       title,
       company: job.company?.display_name || "Company not listed",
       location,
-      state: allowedStates.includes(detectedState) ? detectedState : "Remote",
+      state,
       category,
-      workType,
-      level,
-      opportunityType,
+      workType: detectWorkType(fullText),
+      level: detectLevel(fullText),
+      opportunityType: detectOpportunityType(fullText),
       salary: formatSalary(job),
       link: job.redirect_url,
       description,
@@ -190,12 +154,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const allJobs: Job[] = [];
 
-    for (const state of allowedStates) {
-      for (const group of searchGroups) {
-        for (const term of group.terms) {
-          const jobs = await fetchAdzunaJobs(term, state, group.category);
-          allJobs.push(...jobs);
-        }
+    for (const state of states) {
+      for (const search of searches) {
+        const jobs = await fetchJobs(search.term, state, search.category);
+        allJobs.push(...jobs);
       }
     }
 
