@@ -1,23 +1,9 @@
 import { useEffect, useState } from "react";
-
-type Job = {
-  id: number;
-  title: string;
-  company: string;
-  location: string;
-  state: string;
-  category: string;
-  workType: string;
-  level: string;
-  opportunityType: string;
-  salary: string;
-  link: string;
-  description: string;
-};
+import { getRealJobs, type Job } from "../services/jobsApi";
 
 const starterJobs: Job[] = [
   {
-    id: 1,
+    id: "sample-1",
     title: "Entry Level Software Developer",
     company: "Pivot Career Partner",
     location: "Des Moines",
@@ -30,36 +16,9 @@ const starterJobs: Job[] = [
     link: "https://www.linkedin.com/jobs",
     description:
       "Build web applications using React, TypeScript, APIs, and GitHub.",
-  },
-  {
-    id: 2,
-    title: "Cybersecurity Apprentice",
-    company: "Security Career Partner",
-    location: "Remote",
-    state: "Remote",
-    category: "Cybersecurity",
-    workType: "Remote",
-    level: "Apprenticeship",
-    opportunityType: "Apprenticeship",
-    salary: "$22 - $30/hr",
-    link: "https://www.indeed.com",
-    description:
-      "Support security monitoring, documentation, tickets, and beginner cybersecurity tasks.",
-  },
-  {
-    id: 3,
-    title: "Data Analytics Intern",
-    company: "Data Career Partner",
-    location: "Nashville",
-    state: "Tennessee",
-    category: "Data Analytics",
-    workType: "On-Site",
-    level: "Internship",
-    opportunityType: "Internship",
-    salary: "$18 - $24/hr",
-    link: "https://www.linkedin.com/jobs",
-    description:
-      "Assist with reports, dashboards, Excel, SQL, and data tracking.",
+    source: "Sample",
+    datePosted: "",
+    applicationStatus: "Not Applied",
   },
 ];
 
@@ -67,6 +26,8 @@ export default function JobOpenings() {
   const [jobs, setJobs] = useState<Job[]>(starterJobs);
   const [savedJobs, setSavedJobs] = useState<Job[]>([]);
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
+  const [loadingJobs, setLoadingJobs] = useState(false);
+  const [jobError, setJobError] = useState("");
 
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("All");
@@ -89,25 +50,39 @@ export default function JobOpenings() {
   });
 
   useEffect(() => {
-    const storedJobs = localStorage.getItem("pivotJobs");
     const storedSavedJobs = localStorage.getItem("pivotSavedJobs");
-
-    if (storedJobs) {
-      setJobs(JSON.parse(storedJobs));
-    }
 
     if (storedSavedJobs) {
       setSavedJobs(JSON.parse(storedSavedJobs));
     }
-  }, []);
 
-  useEffect(() => {
-    localStorage.setItem("pivotJobs", JSON.stringify(jobs));
-  }, [jobs]);
+    loadRealJobs();
+  }, []);
 
   useEffect(() => {
     localStorage.setItem("pivotSavedJobs", JSON.stringify(savedJobs));
   }, [savedJobs]);
+
+  async function loadRealJobs() {
+    try {
+      setLoadingJobs(true);
+      setJobError("");
+
+      const realJobs = await getRealJobs();
+
+      const jobsWithStatus = realJobs.map((job) => ({
+        ...job,
+        applicationStatus: job.applicationStatus || "Not Applied",
+      }));
+
+      setJobs(jobsWithStatus.length > 0 ? jobsWithStatus : starterJobs);
+    } catch (error) {
+      setJobError("Real jobs could not load yet. Showing sample jobs.");
+      setJobs(starterJobs);
+    } finally {
+      setLoadingJobs(false);
+    }
+  }
 
   function handleChange(
     e: React.ChangeEvent<
@@ -121,8 +96,11 @@ export default function JobOpenings() {
     e.preventDefault();
 
     const newJob: Job = {
-      id: Date.now(),
+      id: `manual-${Date.now()}`,
       ...form,
+      source: "Manual",
+      datePosted: new Date().toISOString(),
+      applicationStatus: "Not Applied",
     };
 
     setJobs([newJob, ...jobs]);
@@ -142,7 +120,7 @@ export default function JobOpenings() {
     });
   }
 
-  function deleteJob(id: number) {
+  function deleteJob(id: string) {
     setJobs(jobs.filter((job) => job.id !== id));
     setSavedJobs(savedJobs.filter((job) => job.id !== id));
   }
@@ -157,8 +135,26 @@ export default function JobOpenings() {
     }
   }
 
-  function isJobSaved(id: number) {
+  function isJobSaved(id: string) {
     return savedJobs.some((job) => job.id === id);
+  }
+
+  function updateApplicationStatus(id: string, status: string) {
+    setJobs(
+      jobs.map((job) =>
+        job.id === id ? { ...job, applicationStatus: status } : job
+      )
+    );
+
+    setSavedJobs(
+      savedJobs.map((job) =>
+        job.id === id ? { ...job, applicationStatus: status } : job
+      )
+    );
+
+    if (selectedJob?.id === id) {
+      setSelectedJob({ ...selectedJob, applicationStatus: status });
+    }
   }
 
   function printReport() {
@@ -197,8 +193,8 @@ export default function JobOpenings() {
         <div>
           <h1>Job Openings</h1>
           <p className="page-subtitle">
-            Search, save, and manage career opportunities for Pivot students and
-            alumni.
+            Search real jobs from Iowa, Tennessee, and Louisiana. Save jobs,
+            apply, and track application status.
           </p>
         </div>
 
@@ -208,7 +204,21 @@ export default function JobOpenings() {
       </div>
 
       <div className="info-card">
-        <h2>Add Job</h2>
+        <h2>Real Job Feed</h2>
+        <p>
+          Jobs are pulled from the live job API for Software Development,
+          Cybersecurity, and Data Analytics.
+        </p>
+
+        <button onClick={loadRealJobs}>
+          {loadingJobs ? "Loading Jobs..." : "Refresh Real Jobs"}
+        </button>
+
+        {jobError && <p>{jobError}</p>}
+      </div>
+
+      <div className="info-card">
+        <h2>Add Job Manually</h2>
 
         <form className="job-form" onSubmit={addJob}>
           <input
@@ -370,6 +380,11 @@ export default function JobOpenings() {
                   {job.location}, {job.state}
                 </p>
 
+                <div className="tag-row">
+                  <span>{job.category}</span>
+                  <span>{job.applicationStatus || "Not Applied"}</span>
+                </div>
+
                 <div className="card-actions">
                   <button onClick={() => setSelectedJob(job)}>Details</button>
                   <button onClick={() => toggleSaveJob(job)}>Unsave</button>
@@ -380,40 +395,65 @@ export default function JobOpenings() {
         )}
       </div>
 
-      <div className="job-grid">
-        {filteredJobs.map((job) => (
-          <div className="job-card" key={job.id}>
-            <h3>{job.title}</h3>
-            <p className="company">{job.company}</p>
-            <p>
-              {job.location}, {job.state}
-            </p>
+      {loadingJobs ? (
+        <div className="info-card">
+          <h2>Loading real jobs...</h2>
+          <p>Please wait while new job openings load.</p>
+        </div>
+      ) : (
+        <div className="job-grid">
+          {filteredJobs.map((job) => (
+            <div className="job-card" key={job.id}>
+              <h3>{job.title}</h3>
+              <p className="company">{job.company}</p>
+              <p>
+                {job.location}, {job.state}
+              </p>
 
-            <div className="tag-row">
-              <span>{job.category}</span>
-              <span>{job.workType}</span>
-              <span>{job.level}</span>
-              <span>{job.opportunityType}</span>
+              <div className="tag-row">
+                <span>{job.category}</span>
+                <span>{job.workType}</span>
+                <span>{job.level}</span>
+                <span>{job.opportunityType}</span>
+                <span>{job.applicationStatus || "Not Applied"}</span>
+              </div>
+
+              <p className="salary">{job.salary}</p>
+
+              <select
+                value={job.applicationStatus || "Not Applied"}
+                onChange={(e) => updateApplicationStatus(job.id, e.target.value)}
+              >
+                <option>Not Applied</option>
+                <option>Applied</option>
+                <option>Interviewing</option>
+                <option>Offer Received</option>
+                <option>Not Selected</option>
+              </select>
+
+              <div className="card-actions">
+                <button onClick={() => setSelectedJob(job)}>Details</button>
+
+                {job.link && (
+                  <a href={job.link} target="_blank" rel="noreferrer">
+                    <button>Apply</button>
+                  </a>
+                )}
+
+                <button onClick={() => toggleSaveJob(job)}>
+                  {isJobSaved(job.id) ? "Unsave" : "Save"}
+                </button>
+
+                <button className="delete-btn" onClick={() => deleteJob(job.id)}>
+                  Delete
+                </button>
+              </div>
             </div>
+          ))}
+        </div>
+      )}
 
-            <p className="salary">{job.salary}</p>
-
-            <div className="card-actions">
-              <button onClick={() => setSelectedJob(job)}>Details</button>
-
-              <button onClick={() => toggleSaveJob(job)}>
-                {isJobSaved(job.id) ? "Unsave" : "Save"}
-              </button>
-
-              <button className="delete-btn" onClick={() => deleteJob(job.id)}>
-                Delete
-              </button>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {filteredJobs.length === 0 && (
+      {filteredJobs.length === 0 && !loadingJobs && (
         <div className="info-card">
           <h2>No jobs found</h2>
           <p>Try changing your search or filters.</p>
@@ -451,10 +491,32 @@ export default function JobOpenings() {
             </p>
 
             <p>
+              <strong>Application Status:</strong>{" "}
+              {selectedJob.applicationStatus || "Not Applied"}
+            </p>
+
+            <p>
               <strong>Salary:</strong> {selectedJob.salary || "Not listed"}
             </p>
 
+            <p>
+              <strong>Source:</strong> {selectedJob.source}
+            </p>
+
             <p>{selectedJob.description}</p>
+
+            <select
+              value={selectedJob.applicationStatus || "Not Applied"}
+              onChange={(e) =>
+                updateApplicationStatus(selectedJob.id, e.target.value)
+              }
+            >
+              <option>Not Applied</option>
+              <option>Applied</option>
+              <option>Interviewing</option>
+              <option>Offer Received</option>
+              <option>Not Selected</option>
+            </select>
 
             <div className="card-actions">
               {selectedJob.link ? (
