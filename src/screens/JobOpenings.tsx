@@ -1,6 +1,10 @@
 import { useEffect, useState } from "react";
 import { getRealJobs, type Job } from "../services/jobsApi";
 
+type JobOpeningsProps = {
+  initialSearch?: string;
+};
+
 const starterJobs: Job[] = [
   {
     id: "sample-1",
@@ -22,14 +26,14 @@ const starterJobs: Job[] = [
   },
 ];
 
-export default function JobOpenings() {
+export default function JobOpenings({ initialSearch = "" }: JobOpeningsProps) {
   const [jobs, setJobs] = useState<Job[]>(starterJobs);
   const [savedJobs, setSavedJobs] = useState<Job[]>([]);
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
   const [loadingJobs, setLoadingJobs] = useState(false);
   const [jobError, setJobError] = useState("");
 
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(initialSearch);
   const [categoryFilter, setCategoryFilter] = useState("All");
   const [stateFilter, setStateFilter] = useState("All");
   const [workTypeFilter, setWorkTypeFilter] = useState("All");
@@ -60,6 +64,10 @@ export default function JobOpenings() {
   }, []);
 
   useEffect(() => {
+    setSearch(initialSearch);
+  }, [initialSearch]);
+
+  useEffect(() => {
     localStorage.setItem("pivotSavedJobs", JSON.stringify(savedJobs));
   }, [savedJobs]);
 
@@ -76,7 +84,7 @@ export default function JobOpenings() {
       }));
 
       setJobs(jobsWithStatus.length > 0 ? jobsWithStatus : starterJobs);
-    } catch (error) {
+    } catch {
       setJobError("Real jobs could not load yet. Showing sample jobs.");
       setJobs(starterJobs);
     } finally {
@@ -162,11 +170,17 @@ export default function JobOpenings() {
   }
 
   const filteredJobs = jobs.filter((job) => {
+    const lowerSearch = search.toLowerCase();
+
     const matchesSearch =
-      job.title.toLowerCase().includes(search.toLowerCase()) ||
-      job.company.toLowerCase().includes(search.toLowerCase()) ||
-      job.location.toLowerCase().includes(search.toLowerCase()) ||
-      job.category.toLowerCase().includes(search.toLowerCase());
+      job.title.toLowerCase().includes(lowerSearch) ||
+      job.company.toLowerCase().includes(lowerSearch) ||
+      job.location.toLowerCase().includes(lowerSearch) ||
+      job.state.toLowerCase().includes(lowerSearch) ||
+      job.category.toLowerCase().includes(lowerSearch) ||
+      job.workType.toLowerCase().includes(lowerSearch) ||
+      job.level.toLowerCase().includes(lowerSearch) ||
+      job.opportunityType.toLowerCase().includes(lowerSearch);
 
     const matchesCategory =
       categoryFilter === "All" || job.category === categoryFilter;
@@ -215,6 +229,61 @@ export default function JobOpenings() {
         </button>
 
         {jobError && <p>{jobError}</p>}
+      </div>
+
+      <div className="info-card">
+        <h2>Search & Filters</h2>
+
+        <div className="filters-grid">
+          <input
+            placeholder="Search jobs, companies, locations, or tracks..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+
+          <select
+            value={categoryFilter}
+            onChange={(e) => setCategoryFilter(e.target.value)}
+          >
+            <option>All</option>
+            <option>Software Development</option>
+            <option>Cybersecurity</option>
+            <option>Data Analytics</option>
+          </select>
+
+          <select
+            value={stateFilter}
+            onChange={(e) => setStateFilter(e.target.value)}
+          >
+            <option>All</option>
+            <option>Iowa</option>
+            <option>Tennessee</option>
+            <option>Louisiana</option>
+            <option>Remote</option>
+          </select>
+
+          <select
+            value={workTypeFilter}
+            onChange={(e) => setWorkTypeFilter(e.target.value)}
+          >
+            <option>All</option>
+            <option>Remote</option>
+            <option>Hybrid</option>
+            <option>On-Site</option>
+          </select>
+
+          <select
+            value={levelFilter}
+            onChange={(e) => setLevelFilter(e.target.value)}
+          >
+            <option>All</option>
+            <option>Entry Level</option>
+            <option>Mid Level</option>
+            <option>Senior Level</option>
+            <option>Internship</option>
+            <option>Apprenticeship</option>
+          </select>
+        </div>
       </div>
 
       <div className="info-card">
@@ -308,61 +377,6 @@ export default function JobOpenings() {
 
           <button type="submit">Add Job</button>
         </form>
-      </div>
-
-      <div className="info-card">
-        <h2>Search & Filters</h2>
-
-        <div className="filters-grid">
-          <input
-            placeholder="Search jobs, companies, locations, or tracks..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-
-          <select
-            value={categoryFilter}
-            onChange={(e) => setCategoryFilter(e.target.value)}
-          >
-            <option>All</option>
-            <option>Software Development</option>
-            <option>Cybersecurity</option>
-            <option>Data Analytics</option>
-          </select>
-
-          <select
-            value={stateFilter}
-            onChange={(e) => setStateFilter(e.target.value)}
-          >
-            <option>All</option>
-            <option>Iowa</option>
-            <option>Tennessee</option>
-            <option>Louisiana</option>
-            <option>Remote</option>
-          </select>
-
-          <select
-            value={workTypeFilter}
-            onChange={(e) => setWorkTypeFilter(e.target.value)}
-          >
-            <option>All</option>
-            <option>Remote</option>
-            <option>Hybrid</option>
-            <option>On-Site</option>
-          </select>
-
-          <select
-            value={levelFilter}
-            onChange={(e) => setLevelFilter(e.target.value)}
-          >
-            <option>All</option>
-            <option>Entry Level</option>
-            <option>Mid Level</option>
-            <option>Senior Level</option>
-            <option>Internship</option>
-            <option>Apprenticeship</option>
-          </select>
-        </div>
       </div>
 
       <div className="info-card">
