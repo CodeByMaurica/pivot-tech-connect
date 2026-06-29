@@ -1,8 +1,17 @@
 import { useEffect, useState } from "react";
 import { getRealJobs, type Job } from "../services/jobsApi";
+import type { JobSearchFilters } from "../App";
 
 type JobOpeningsProps = {
-  initialSearch?: string;
+  initialFilters?: JobSearchFilters;
+};
+
+const defaultFilters: JobSearchFilters = {
+  keyword: "",
+  category: "All",
+  state: "All",
+  workType: "All",
+  level: "All",
 };
 
 const starterJobs: Job[] = [
@@ -26,32 +35,20 @@ const starterJobs: Job[] = [
   },
 ];
 
-export default function JobOpenings({ initialSearch = "" }: JobOpeningsProps) {
+export default function JobOpenings({
+  initialFilters = defaultFilters,
+}: JobOpeningsProps) {
   const [jobs, setJobs] = useState<Job[]>(starterJobs);
   const [savedJobs, setSavedJobs] = useState<Job[]>([]);
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
   const [loadingJobs, setLoadingJobs] = useState(false);
   const [jobError, setJobError] = useState("");
 
-  const [search, setSearch] = useState(initialSearch);
-  const [categoryFilter, setCategoryFilter] = useState("All");
-  const [stateFilter, setStateFilter] = useState("All");
-  const [workTypeFilter, setWorkTypeFilter] = useState("All");
-  const [levelFilter, setLevelFilter] = useState("All");
-
-  const [form, setForm] = useState({
-    title: "",
-    company: "",
-    location: "",
-    state: "Iowa",
-    category: "Software Development",
-    workType: "Remote",
-    level: "Entry Level",
-    opportunityType: "Full-Time",
-    salary: "",
-    link: "",
-    description: "",
-  });
+  const [search, setSearch] = useState(initialFilters.keyword);
+  const [categoryFilter, setCategoryFilter] = useState(initialFilters.category);
+  const [stateFilter, setStateFilter] = useState(initialFilters.state);
+  const [workTypeFilter, setWorkTypeFilter] = useState(initialFilters.workType);
+  const [levelFilter, setLevelFilter] = useState(initialFilters.level);
 
   useEffect(() => {
     const storedSavedJobs = localStorage.getItem("pivotSavedJobs");
@@ -64,8 +61,12 @@ export default function JobOpenings({ initialSearch = "" }: JobOpeningsProps) {
   }, []);
 
   useEffect(() => {
-    setSearch(initialSearch);
-  }, [initialSearch]);
+    setSearch(initialFilters.keyword);
+    setCategoryFilter(initialFilters.category);
+    setStateFilter(initialFilters.state);
+    setWorkTypeFilter(initialFilters.workType);
+    setLevelFilter(initialFilters.level);
+  }, [initialFilters]);
 
   useEffect(() => {
     localStorage.setItem("pivotSavedJobs", JSON.stringify(savedJobs));
@@ -90,47 +91,6 @@ export default function JobOpenings({ initialSearch = "" }: JobOpeningsProps) {
     } finally {
       setLoadingJobs(false);
     }
-  }
-
-  function handleChange(
-    e: React.ChangeEvent<
-      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
-    >
-  ) {
-    setForm({ ...form, [e.target.name]: e.target.value });
-  }
-
-  function addJob(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-
-    const newJob: Job = {
-      id: `manual-${Date.now()}`,
-      ...form,
-      source: "Manual",
-      datePosted: new Date().toISOString(),
-      applicationStatus: "Not Applied",
-    };
-
-    setJobs([newJob, ...jobs]);
-
-    setForm({
-      title: "",
-      company: "",
-      location: "",
-      state: "Iowa",
-      category: "Software Development",
-      workType: "Remote",
-      level: "Entry Level",
-      opportunityType: "Full-Time",
-      salary: "",
-      link: "",
-      description: "",
-    });
-  }
-
-  function deleteJob(id: string) {
-    setJobs(jobs.filter((job) => job.id !== id));
-    setSavedJobs(savedJobs.filter((job) => job.id !== id));
   }
 
   function toggleSaveJob(job: Job) {
@@ -165,14 +125,11 @@ export default function JobOpenings({ initialSearch = "" }: JobOpeningsProps) {
     }
   }
 
-  function printReport() {
-    window.print();
-  }
-
   const filteredJobs = jobs.filter((job) => {
     const lowerSearch = search.toLowerCase();
 
     const matchesSearch =
+      lowerSearch === "" ||
       job.title.toLowerCase().includes(lowerSearch) ||
       job.company.toLowerCase().includes(lowerSearch) ||
       job.location.toLowerCase().includes(lowerSearch) ||
@@ -207,28 +164,9 @@ export default function JobOpenings({ initialSearch = "" }: JobOpeningsProps) {
         <div>
           <h1>Job Openings</h1>
           <p className="page-subtitle">
-            Search real jobs from Iowa, Tennessee, and Louisiana. Save jobs,
-            apply, and track application status.
+            Search real jobs from Iowa, Tennessee, and Louisiana.
           </p>
         </div>
-
-        <button className="print-btn" onClick={printReport}>
-          Print Report
-        </button>
-      </div>
-
-      <div className="info-card">
-        <h2>Real Job Feed</h2>
-        <p>
-          Jobs are pulled from the live job API for Software Development,
-          Cybersecurity, and Data Analytics.
-        </p>
-
-        <button onClick={loadRealJobs}>
-          {loadingJobs ? "Loading Jobs..." : "Refresh Real Jobs"}
-        </button>
-
-        {jobError && <p>{jobError}</p>}
       </div>
 
       <div className="info-card">
@@ -283,130 +221,17 @@ export default function JobOpenings({ initialSearch = "" }: JobOpeningsProps) {
             <option>Internship</option>
             <option>Apprenticeship</option>
           </select>
+
+          <button onClick={loadRealJobs}>
+            {loadingJobs ? "Loading..." : "Refresh Jobs"}
+          </button>
         </div>
+
+        {jobError && <p>{jobError}</p>}
       </div>
 
       <div className="info-card">
-        <h2>Add Job Manually</h2>
-
-        <form className="job-form" onSubmit={addJob}>
-          <input
-            name="title"
-            placeholder="Job title"
-            value={form.title}
-            onChange={handleChange}
-            required
-          />
-
-          <input
-            name="company"
-            placeholder="Company"
-            value={form.company}
-            onChange={handleChange}
-            required
-          />
-
-          <input
-            name="location"
-            placeholder="City or Remote"
-            value={form.location}
-            onChange={handleChange}
-            required
-          />
-
-          <select name="state" value={form.state} onChange={handleChange}>
-            <option>Iowa</option>
-            <option>Tennessee</option>
-            <option>Louisiana</option>
-            <option>Remote</option>
-          </select>
-
-          <select name="category" value={form.category} onChange={handleChange}>
-            <option>Software Development</option>
-            <option>Cybersecurity</option>
-            <option>Data Analytics</option>
-          </select>
-
-          <select name="workType" value={form.workType} onChange={handleChange}>
-            <option>Remote</option>
-            <option>Hybrid</option>
-            <option>On-Site</option>
-          </select>
-
-          <select name="level" value={form.level} onChange={handleChange}>
-            <option>Entry Level</option>
-            <option>Mid Level</option>
-            <option>Senior Level</option>
-            <option>Internship</option>
-            <option>Apprenticeship</option>
-          </select>
-
-          <select
-            name="opportunityType"
-            value={form.opportunityType}
-            onChange={handleChange}
-          >
-            <option>Full-Time</option>
-            <option>Part-Time</option>
-            <option>Internship</option>
-            <option>Apprenticeship</option>
-            <option>Contract</option>
-          </select>
-
-          <input
-            name="salary"
-            placeholder="Salary"
-            value={form.salary}
-            onChange={handleChange}
-          />
-
-          <input
-            name="link"
-            placeholder="Application link"
-            value={form.link}
-            onChange={handleChange}
-          />
-
-          <textarea
-            name="description"
-            placeholder="Job description"
-            value={form.description}
-            onChange={handleChange}
-            required
-          />
-
-          <button type="submit">Add Job</button>
-        </form>
-      </div>
-
-      <div className="info-card">
-        <h2>Saved Jobs ({savedJobs.length})</h2>
-
-        {savedJobs.length === 0 ? (
-          <p>No saved jobs yet.</p>
-        ) : (
-          <div className="job-grid">
-            {savedJobs.map((job) => (
-              <div className="job-card" key={job.id}>
-                <h3>{job.title}</h3>
-                <p className="company">{job.company}</p>
-                <p>
-                  {job.location}, {job.state}
-                </p>
-
-                <div className="tag-row">
-                  <span>{job.category}</span>
-                  <span>{job.applicationStatus || "Not Applied"}</span>
-                </div>
-
-                <div className="card-actions">
-                  <button onClick={() => setSelectedJob(job)}>Details</button>
-                  <button onClick={() => toggleSaveJob(job)}>Unsave</button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+        <h2>Results ({filteredJobs.length})</h2>
       </div>
 
       {loadingJobs ? (
@@ -457,10 +282,6 @@ export default function JobOpenings({ initialSearch = "" }: JobOpeningsProps) {
                 <button onClick={() => toggleSaveJob(job)}>
                   {isJobSaved(job.id) ? "Unsave" : "Save"}
                 </button>
-
-                <button className="delete-btn" onClick={() => deleteJob(job.id)}>
-                  Delete
-                </button>
               </div>
             </div>
           ))}
@@ -478,67 +299,32 @@ export default function JobOpenings({ initialSearch = "" }: JobOpeningsProps) {
         <div className="modal-backdrop" onClick={() => setSelectedJob(null)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <h2>{selectedJob.title}</h2>
-
             <p>
               <strong>Company:</strong> {selectedJob.company}
             </p>
-
             <p>
               <strong>Location:</strong> {selectedJob.location},{" "}
               {selectedJob.state}
             </p>
-
             <p>
               <strong>Career Track:</strong> {selectedJob.category}
             </p>
-
             <p>
               <strong>Work Type:</strong> {selectedJob.workType}
             </p>
-
             <p>
               <strong>Level:</strong> {selectedJob.level}
             </p>
-
-            <p>
-              <strong>Opportunity Type:</strong> {selectedJob.opportunityType}
-            </p>
-
-            <p>
-              <strong>Application Status:</strong>{" "}
-              {selectedJob.applicationStatus || "Not Applied"}
-            </p>
-
             <p>
               <strong>Salary:</strong> {selectedJob.salary || "Not listed"}
             </p>
-
-            <p>
-              <strong>Source:</strong> {selectedJob.source}
-            </p>
-
             <p>{selectedJob.description}</p>
 
-            <select
-              value={selectedJob.applicationStatus || "Not Applied"}
-              onChange={(e) =>
-                updateApplicationStatus(selectedJob.id, e.target.value)
-              }
-            >
-              <option>Not Applied</option>
-              <option>Applied</option>
-              <option>Interviewing</option>
-              <option>Offer Received</option>
-              <option>Not Selected</option>
-            </select>
-
             <div className="card-actions">
-              {selectedJob.link ? (
+              {selectedJob.link && (
                 <a href={selectedJob.link} target="_blank" rel="noreferrer">
                   <button>Apply</button>
                 </a>
-              ) : (
-                <button disabled>No Link</button>
               )}
 
               <button onClick={() => toggleSaveJob(selectedJob)}>

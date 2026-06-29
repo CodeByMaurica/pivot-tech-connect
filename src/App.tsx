@@ -9,10 +9,26 @@ import Resources from "./screens/Resources";
 import About from "./screens/About";
 import AlumniOutreach from "./screens/AlumniOutreach";
 
+export type JobSearchFilters = {
+  keyword: string;
+  category: string;
+  state: string;
+  workType: string;
+  level: string;
+};
+
+const defaultJobFilters: JobSearchFilters = {
+  keyword: "",
+  category: "All",
+  state: "All",
+  workType: "All",
+  level: "All",
+};
+
 function App() {
   const [activeScreen, setActiveScreen] = useState("PublicHome");
   const [userRole, setUserRole] = useState("");
-  const [jobSearchTerm, setJobSearchTerm] = useState("");
+  const [jobFilters, setJobFilters] = useState<JobSearchFilters>(defaultJobFilters);
 
   useEffect(() => {
     const savedRole = localStorage.getItem("pivotUserRole");
@@ -35,8 +51,13 @@ function App() {
     setActiveScreen("PublicHome");
   }
 
-  function openJobsWithSearch(searchTerm: string) {
-    setJobSearchTerm(searchTerm);
+  function openJobsWithFilters(filters: JobSearchFilters) {
+    setJobFilters(filters);
+    setActiveScreen("JobOpenings");
+  }
+
+  function openAllJobs() {
+    setJobFilters(defaultJobFilters);
     setActiveScreen("JobOpenings");
   }
 
@@ -45,43 +66,24 @@ function App() {
       return (
         <PublicHome
           onLoginClick={() => setActiveScreen("Login")}
-          onBrowseClick={() => openJobsWithSearch("")}
-          onSearchJobs={openJobsWithSearch}
+          onBrowseClick={openAllJobs}
+          onSearchJobs={openJobsWithFilters}
         />
       );
     }
 
-    if (activeScreen === "Login") {
-      return <Login onLogin={handleLogin} />;
-    }
-
-    if (activeScreen === "Dashboard") {
-      return <Dashboard />;
-    }
+    if (activeScreen === "Login") return <Login onLogin={handleLogin} />;
+    if (activeScreen === "Dashboard") return <Dashboard />;
 
     if (activeScreen === "JobOpenings") {
-      return <JobOpenings initialSearch={jobSearchTerm} />;
+      return <JobOpenings initialFilters={jobFilters} />;
     }
 
-    if (activeScreen === "Resources") {
-      return <Resources />;
-    }
+    if (activeScreen === "Resources") return <Resources />;
+    if (activeScreen === "AlumniOutreach") return <AlumniOutreach />;
+    if (activeScreen === "About") return <About />;
 
-    if (activeScreen === "AlumniOutreach") {
-      return <AlumniOutreach />;
-    }
-
-    if (activeScreen === "About") {
-      return <About />;
-    }
-
-    return (
-      <PublicHome
-        onLoginClick={() => setActiveScreen("Login")}
-        onBrowseClick={() => openJobsWithSearch("")}
-        onSearchJobs={openJobsWithSearch}
-      />
-    );
+    return <PublicHome onBrowseClick={openAllJobs} onSearchJobs={openJobsWithFilters} />;
   }
 
   const isLoggedIn = userRole !== "";
@@ -102,12 +104,8 @@ function App() {
           </div>
 
           <button onClick={() => setActiveScreen("Dashboard")}>Dashboard</button>
-
-          <button onClick={() => openJobsWithSearch("")}>Job Openings</button>
-
-          <button onClick={() => setActiveScreen("Resources")}>
-            Career Resources
-          </button>
+          <button onClick={openAllJobs}>Job Openings</button>
+          <button onClick={() => setActiveScreen("Resources")}>Career Resources</button>
 
           {(userRole === "owner" || userRole === "alumni") && (
             <button onClick={() => setActiveScreen("AlumniOutreach")}>
