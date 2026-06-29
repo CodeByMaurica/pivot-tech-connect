@@ -35,7 +35,7 @@ function App() {
     setActiveScreen("PublicHome");
   }
 
-  function handlePublicJobSearch(searchTerm: string) {
+  function openJobsWithSearch(searchTerm: string) {
     setJobSearchTerm(searchTerm);
     setActiveScreen("JobOpenings");
   }
@@ -45,8 +45,8 @@ function App() {
       return (
         <PublicHome
           onLoginClick={() => setActiveScreen("Login")}
-          onBrowseClick={() => handlePublicJobSearch("")}
-          onSearchJobs={handlePublicJobSearch}
+          onBrowseClick={() => openJobsWithSearch("")}
+          onSearchJobs={openJobsWithSearch}
         />
       );
     }
@@ -75,7 +75,13 @@ function App() {
       return <About />;
     }
 
-    return <PublicHome />;
+    return (
+      <PublicHome
+        onLoginClick={() => setActiveScreen("Login")}
+        onBrowseClick={() => openJobsWithSearch("")}
+        onSearchJobs={openJobsWithSearch}
+      />
+    );
   }
 
   const isLoggedIn = userRole !== "";
@@ -97,14 +103,7 @@ function App() {
 
           <button onClick={() => setActiveScreen("Dashboard")}>Dashboard</button>
 
-          <button
-            onClick={() => {
-              setJobSearchTerm("");
-              setActiveScreen("JobOpenings");
-            }}
-          >
-            Job Openings
-          </button>
+          <button onClick={() => openJobsWithSearch("")}>Job Openings</button>
 
           <button onClick={() => setActiveScreen("Resources")}>
             Career Resources
