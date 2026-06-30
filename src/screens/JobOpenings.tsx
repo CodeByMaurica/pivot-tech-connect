@@ -1,341 +1,409 @@
-import { useEffect, useState } from "react";
-import { getRealJobs, type Job } from "../services/jobsApi";
-import type { JobSearchFilters } from "../App";
+import { useEffect, useMemo, useState } from "react";
 
-type JobOpeningsProps = {
-  initialFilters?: JobSearchFilters;
+type Job = {
+  id: string;
+  title: string;
+  company: string;
+  location: string;
+  category: string;
+  level: string;
+  type: string;
+  salary?: string;
+  description: string;
+  applyUrl?: string;
+  postedDate?: string;
 };
 
-const defaultFilters: JobSearchFilters = {
-  keyword: "",
-  category: "All",
-  state: "All",
-  workType: "All",
-  level: "All",
-};
-
-const starterJobs: Job[] = [
+const fallbackJobs: Job[] = [
   {
-    id: "sample-1",
-    title: "Entry Level Software Developer",
-    company: "Pivot Career Partner",
-    location: "Des Moines",
-    state: "Iowa",
+    id: "1",
+    title: "Junior Software Developer",
+    company: "TechBridge Solutions",
+    location: "Remote",
     category: "Software Development",
-    workType: "Hybrid",
     level: "Entry Level",
-    opportunityType: "Full-Time",
-    salary: "$55,000 - $70,000",
-    link: "https://www.linkedin.com/jobs",
+    type: "Full-time",
+    salary: "$62,000 - $75,000",
+    postedDate: "Today",
     description:
-      "Build web applications using React, TypeScript, APIs, and GitHub.",
-    source: "Sample",
-    datePosted: "",
-    applicationStatus: "Not Applied",
+      "Build and maintain React, TypeScript, and API-driven web applications for client-facing platforms.",
+    applyUrl: "#",
+  },
+  {
+    id: "2",
+    title: "Cybersecurity Analyst Apprentice",
+    company: "SecurePath",
+    location: "Iowa",
+    category: "Cybersecurity",
+    level: "Apprenticeship",
+    type: "Apprenticeship",
+    salary: "$22 - $28/hr",
+    postedDate: "1 day ago",
+    description:
+      "Support security monitoring, incident response, vulnerability reviews, and documentation.",
+    applyUrl: "#",
+  },
+  {
+    id: "3",
+    title: "Data Analytics Intern",
+    company: "InsightWorks",
+    location: "Tennessee",
+    category: "Data Analytics",
+    level: "Internship",
+    type: "Internship",
+    salary: "$20/hr",
+    postedDate: "2 days ago",
+    description:
+      "Assist with dashboard reporting, SQL queries, Excel analysis, and business intelligence projects.",
+    applyUrl: "#",
   },
 ];
 
-export default function JobOpenings({
-  initialFilters = defaultFilters,
-}: JobOpeningsProps) {
-  const [jobs, setJobs] = useState<Job[]>(starterJobs);
-  const [savedJobs, setSavedJobs] = useState<Job[]>([]);
-  const [selectedJob, setSelectedJob] = useState<Job | null>(null);
-  const [loadingJobs, setLoadingJobs] = useState(false);
-  const [jobError, setJobError] = useState("");
+const filters = [
+  "Software Development",
+  "Cybersecurity",
+  "Data Analytics",
+  "Iowa",
+  "Tennessee",
+  "Louisiana",
+  "Remote",
+  "Entry Level",
+  "Mid Level",
+  "Senior Level",
+  "Internship",
+  "Apprenticeship",
+  "Contract",
+];
 
-  const [search, setSearch] = useState(initialFilters.keyword);
-  const [categoryFilter, setCategoryFilter] = useState(initialFilters.category);
-  const [stateFilter, setStateFilter] = useState(initialFilters.state);
-  const [workTypeFilter, setWorkTypeFilter] = useState(initialFilters.workType);
-  const [levelFilter, setLevelFilter] = useState(initialFilters.level);
+function cleanText(value: unknown): string {
+  if (typeof value !== "string") return "";
+
+  return value.replace(/<[^>]*>/g, "").trim();
+}
+
+function formatJob(job: any, index: number): Job {
+  const companyName =
+    typeof job.company === "string"
+      ? job.company
+      : job.company?.display_name;
+
+  const locationName =
+    typeof job.location === "string"
+      ? job.location
+      : job.location?.display_name;
+
+  const categoryName =
+    typeof job.category === "string"
+      ? job.category
+      : job.category?.label;
+
+  return {
+    id: String(job.id ?? job.job_id ?? job.slug ?? index + 1),
+    title: cleanText(job.title ?? job.job_title ?? job.name) || "Untitled Job",
+    company:
+      cleanText(
+        companyName ??
+          job.company_name ??
+          job.companyName ??
+          job.employer
+      ) || "Unknown Company",
+    location:
+      cleanText(
+        locationName ??
+          job.job_location ??
+          job.candidate_required_location ??
+          job.city
+      ) || "Remote",
+    category:
+      cleanText(categoryName ?? job.job_category ?? job.industry) ||
+      "Technology",
+    level:
+      cleanText(job.level ?? job.seniority ?? job.experience_level) ||
+      "Entry Level",
+    type:
+      cleanText(job.type ?? job.job_type ?? job.employment_type) ||
+      cleanText(job.contract_time ?? job.contract_type) ||
+      "Full-time",
+    salary:
+      cleanText(job.salary ?? job.salary_range ?? job.compensation) ||
+      (job.salary_min && job.salary_max
+        ? `$${Math.round(job.salary_min).toLocaleString()} - $${Math.round(
+            job.salary_max
+          ).toLocaleString()}`
+        : ""),
+    description:
+      cleanText(
+        job.description ?? job.job_description ?? job.snippet ?? job.summary
+      ) || "No description available.",
+    applyUrl:
+      job.applyUrl ??
+      job.apply_url ??
+      job.job_apply_link ??
+      job.apply_link ??
+      job.redirect_url ??
+      job.application_url ??
+      job.url ??
+      job.job_url ??
+      "#",
+    postedDate:
+      cleanText(
+        job.postedDate ??
+          job.posted_date ??
+          job.publication_date ??
+          job.created_at ??
+          job.created
+      ) || "Recently posted",
+  };
+}
+
+export default function JobOpenings() {
+  const [jobs, setJobs] = useState<Job[]>(fallbackJobs);
+  const [selectedJob, setSelectedJob] = useState<Job>(fallbackJobs[0]);
+  const [activeFilters, setActiveFilters] = useState<string[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [showFilters, setShowFilters] = useState(true);
 
   useEffect(() => {
-    const storedSavedJobs = localStorage.getItem("pivotSavedJobs");
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchTerm);
+    }, 500);
 
-    if (storedSavedJobs) {
-      setSavedJobs(JSON.parse(storedSavedJobs));
-    }
-
-    loadRealJobs();
-  }, []);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
 
   useEffect(() => {
-    setSearch(initialFilters.keyword);
-    setCategoryFilter(initialFilters.category);
-    setStateFilter(initialFilters.state);
-    setWorkTypeFilter(initialFilters.workType);
-    setLevelFilter(initialFilters.level);
-  }, [initialFilters]);
+    async function loadJobs() {
+      try {
+        const response = await fetch(
+          `/api/jobs?keyword=${encodeURIComponent(
+            debouncedSearch || "software developer"
+          )}&location=${encodeURIComponent("United States")}`
+        );
 
-  useEffect(() => {
-    localStorage.setItem("pivotSavedJobs", JSON.stringify(savedJobs));
-  }, [savedJobs]);
+        if (!response.ok) {
+          throw new Error("Jobs API failed");
+        }
 
-  async function loadRealJobs() {
-    try {
-      setLoadingJobs(true);
-      setJobError("");
+        const data = await response.json();
 
-      const realJobs = await getRealJobs();
+        const rawJobs = Array.isArray(data)
+          ? data
+          : Array.isArray(data.jobs)
+          ? data.jobs
+          : Array.isArray(data.results)
+          ? data.results
+          : Array.isArray(data.data)
+          ? data.data
+          : Array.isArray(data.items)
+          ? data.items
+          : [];
 
-      const jobsWithStatus = realJobs.map((job) => ({
-        ...job,
-        applicationStatus: job.applicationStatus || "Not Applied",
-      }));
+        const formattedJobs = rawJobs.map((job: any, index: number) =>
+          formatJob(job, index)
+        );
 
-      setJobs(jobsWithStatus.length > 0 ? jobsWithStatus : starterJobs);
-    } catch {
-      setJobError("Real jobs could not load yet. Showing sample jobs.");
-      setJobs(starterJobs);
-    } finally {
-      setLoadingJobs(false);
+        if (formattedJobs.length > 0) {
+          setJobs(formattedJobs);
+          setSelectedJob(formattedJobs[0]);
+        } else {
+          setJobs(fallbackJobs);
+          setSelectedJob(fallbackJobs[0]);
+        }
+      } catch (error) {
+        console.error("Job loading error:", error);
+        setJobs(fallbackJobs);
+        setSelectedJob(fallbackJobs[0]);
+      }
     }
-  }
 
-  function toggleSaveJob(job: Job) {
-    const alreadySaved = savedJobs.some((savedJob) => savedJob.id === job.id);
+    loadJobs();
+  }, [debouncedSearch]);
 
-    if (alreadySaved) {
-      setSavedJobs(savedJobs.filter((savedJob) => savedJob.id !== job.id));
-    } else {
-      setSavedJobs([job, ...savedJobs]);
-    }
-  }
-
-  function isJobSaved(id: string) {
-    return savedJobs.some((job) => job.id === id);
-  }
-
-  function updateApplicationStatus(id: string, status: string) {
-    setJobs(
-      jobs.map((job) =>
-        job.id === id ? { ...job, applicationStatus: status } : job
-      )
+  function toggleFilter(filter: string) {
+    setActiveFilters((currentFilters) =>
+      currentFilters.includes(filter)
+        ? currentFilters.filter((item) => item !== filter)
+        : [...currentFilters, filter]
     );
-
-    setSavedJobs(
-      savedJobs.map((job) =>
-        job.id === id ? { ...job, applicationStatus: status } : job
-      )
-    );
-
-    if (selectedJob?.id === id) {
-      setSelectedJob({ ...selectedJob, applicationStatus: status });
-    }
   }
 
-  const filteredJobs = jobs.filter((job) => {
-    const lowerSearch = search.toLowerCase();
+  const filteredJobs = useMemo(() => {
+    return jobs.filter((job) => {
+      const searchableText = `
+        ${job.title}
+        ${job.company}
+        ${job.location}
+        ${job.category}
+        ${job.level}
+        ${job.type}
+      `.toLowerCase();
 
-    const matchesSearch =
-      lowerSearch === "" ||
-      job.title.toLowerCase().includes(lowerSearch) ||
-      job.company.toLowerCase().includes(lowerSearch) ||
-      job.location.toLowerCase().includes(lowerSearch) ||
-      job.state.toLowerCase().includes(lowerSearch) ||
-      job.category.toLowerCase().includes(lowerSearch) ||
-      job.workType.toLowerCase().includes(lowerSearch) ||
-      job.level.toLowerCase().includes(lowerSearch) ||
-      job.opportunityType.toLowerCase().includes(lowerSearch);
+      const matchesSearch = searchableText.includes(searchTerm.toLowerCase());
 
-    const matchesCategory =
-      categoryFilter === "All" || job.category === categoryFilter;
+      const matchesFilters =
+        activeFilters.length === 0 ||
+        activeFilters.some((filter) =>
+          searchableText.includes(filter.toLowerCase())
+        );
 
-    const matchesState = stateFilter === "All" || job.state === stateFilter;
-
-    const matchesWorkType =
-      workTypeFilter === "All" || job.workType === workTypeFilter;
-
-    const matchesLevel = levelFilter === "All" || job.level === levelFilter;
-
-    return (
-      matchesSearch &&
-      matchesCategory &&
-      matchesState &&
-      matchesWorkType &&
-      matchesLevel
-    );
-  });
+      return matchesSearch && matchesFilters;
+    });
+  }, [jobs, searchTerm, activeFilters]);
 
   return (
-    <section>
-      <div className="page-header">
+    <main className="jobs-page">
+      <section className="jobs-header">
         <div>
+          <p className="eyebrow">Pivot Tech Connect</p>
           <h1>Job Openings</h1>
-          <p className="page-subtitle">
-            Search real jobs from Iowa, Tennessee, and Louisiana.
+          <p>
+            Discover software, cybersecurity, data, internship, apprenticeship,
+            and remote opportunities.
           </p>
         </div>
-      </div>
+      </section>
 
-      <div className="info-card">
-        <h2>Search & Filters</h2>
-
-        <div className="filters-grid">
-          <input
-            placeholder="Search jobs, companies, locations, or tracks..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-
-          <select
-            value={categoryFilter}
-            onChange={(e) => setCategoryFilter(e.target.value)}
+      <section className="jobs-search-panel">
+        <div className="filter-toggle-row">
+          <button
+            className="filter-menu-btn"
+            onClick={() => setShowFilters(!showFilters)}
           >
-            <option>All</option>
-            <option>Software Development</option>
-            <option>Cybersecurity</option>
-            <option>Data Analytics</option>
-          </select>
-
-          <select
-            value={stateFilter}
-            onChange={(e) => setStateFilter(e.target.value)}
-          >
-            <option>All</option>
-            <option>Iowa</option>
-            <option>Tennessee</option>
-            <option>Louisiana</option>
-            <option>Remote</option>
-          </select>
-
-          <select
-            value={workTypeFilter}
-            onChange={(e) => setWorkTypeFilter(e.target.value)}
-          >
-            <option>All</option>
-            <option>Remote</option>
-            <option>Hybrid</option>
-            <option>On-Site</option>
-          </select>
-
-          <select
-            value={levelFilter}
-            onChange={(e) => setLevelFilter(e.target.value)}
-          >
-            <option>All</option>
-            <option>Entry Level</option>
-            <option>Mid Level</option>
-            <option>Senior Level</option>
-            <option>Internship</option>
-            <option>Apprenticeship</option>
-          </select>
-
-          <button onClick={loadRealJobs}>
-            {loadingJobs ? "Loading..." : "Refresh Jobs"}
+            ☰ Filters
           </button>
+
+          {activeFilters.length > 0 && (
+            <button
+              className="clear-filters-btn top-clear-btn"
+              onClick={() => setActiveFilters([])}
+            >
+              Clear filters
+            </button>
+          )}
         </div>
 
-        {jobError && <p>{jobError}</p>}
-      </div>
-
-      <div className="info-card">
-        <h2>Results ({filteredJobs.length})</h2>
-      </div>
-
-      {loadingJobs ? (
-        <div className="info-card">
-          <h2>Loading real jobs...</h2>
-          <p>Please wait while new job openings load.</p>
-        </div>
-      ) : (
-        <div className="job-grid">
-          {filteredJobs.map((job) => (
-            <div className="job-card" key={job.id}>
-              <h3>{job.title}</h3>
-              <p className="company">{job.company}</p>
-              <p>
-                {job.location}, {job.state}
-              </p>
-
-              <div className="tag-row">
-                <span>{job.category}</span>
-                <span>{job.workType}</span>
-                <span>{job.level}</span>
-                <span>{job.opportunityType}</span>
-                <span>{job.applicationStatus || "Not Applied"}</span>
-              </div>
-
-              <p className="salary">{job.salary}</p>
-
-              <select
-                value={job.applicationStatus || "Not Applied"}
-                onChange={(e) => updateApplicationStatus(job.id, e.target.value)}
+        {showFilters && (
+          <div className="top-filter-list">
+            {filters.map((filter) => (
+              <button
+                key={filter}
+                className={
+                  activeFilters.includes(filter)
+                    ? "filter-pill active"
+                    : "filter-pill"
+                }
+                onClick={() => toggleFilter(filter)}
               >
-                <option>Not Applied</option>
-                <option>Applied</option>
-                <option>Interviewing</option>
-                <option>Offer Received</option>
-                <option>Not Selected</option>
-              </select>
-
-              <div className="card-actions">
-                <button onClick={() => setSelectedJob(job)}>Details</button>
-
-                {job.link && (
-                  <a href={job.link} target="_blank" rel="noreferrer">
-                    <button>Apply</button>
-                  </a>
-                )}
-
-                <button onClick={() => toggleSaveJob(job)}>
-                  {isJobSaved(job.id) ? "Unsave" : "Save"}
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {filteredJobs.length === 0 && !loadingJobs && (
-        <div className="info-card">
-          <h2>No jobs found</h2>
-          <p>Try changing your search or filters.</p>
-        </div>
-      )}
-
-      {selectedJob && (
-        <div className="modal-backdrop" onClick={() => setSelectedJob(null)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h2>{selectedJob.title}</h2>
-            <p>
-              <strong>Company:</strong> {selectedJob.company}
-            </p>
-            <p>
-              <strong>Location:</strong> {selectedJob.location},{" "}
-              {selectedJob.state}
-            </p>
-            <p>
-              <strong>Career Track:</strong> {selectedJob.category}
-            </p>
-            <p>
-              <strong>Work Type:</strong> {selectedJob.workType}
-            </p>
-            <p>
-              <strong>Level:</strong> {selectedJob.level}
-            </p>
-            <p>
-              <strong>Salary:</strong> {selectedJob.salary || "Not listed"}
-            </p>
-            <p>{selectedJob.description}</p>
-
-            <div className="card-actions">
-              {selectedJob.link && (
-                <a href={selectedJob.link} target="_blank" rel="noreferrer">
-                  <button>Apply</button>
-                </a>
-              )}
-
-              <button onClick={() => toggleSaveJob(selectedJob)}>
-                {isJobSaved(selectedJob.id) ? "Unsave" : "Save"}
+                {filter}
               </button>
+            ))}
+          </div>
+        )}
 
-              <button onClick={() => setSelectedJob(null)}>Close</button>
+        <div className="jobs-search-box centered-search">
+          <input
+            type="text"
+            placeholder="Search jobs, companies, skills, or locations"
+            value={searchTerm}
+            onChange={(event) => setSearchTerm(event.target.value)}
+          />
+        </div>
+      </section>
+
+      <section className="jobs-layout no-sidebar-layout">
+        <section className="jobs-results">
+          <div className="results-topbar">
+            <div>
+              <h2>{filteredJobs.length} jobs found</h2>
+              <p>Showing best matches for Pivot Tech students and alumni.</p>
             </div>
           </div>
-        </div>
-      )}
-    </section>
+
+          <div className="job-row-list">
+            {filteredJobs.map((job) => (
+              <button
+                key={job.id}
+                className={
+                  selectedJob?.id === job.id ? "job-row selected" : "job-row"
+                }
+                onClick={() => setSelectedJob(job)}
+              >
+                <div className="job-row-main">
+                  <h3>{job.title}</h3>
+                  <p className="company-name">{job.company}</p>
+                  <p className="job-meta">
+                    {job.location} • {job.level} • {job.type}
+                  </p>
+                  <p className="job-preview">{job.description}</p>
+                </div>
+
+                <div className="job-row-side">
+                  <span>{job.postedDate || "Recently posted"}</span>
+                  {job.salary && <strong>{job.salary}</strong>}
+                </div>
+              </button>
+            ))}
+          </div>
+        </section>
+
+        <aside className="job-details-panel">
+          {selectedJob ? (
+            <div className="details-card">
+              <p className="details-label">Selected Job</p>
+              <h2>{selectedJob.title}</h2>
+              <h3>{selectedJob.company}</h3>
+
+              <div className="details-tags">
+                <span>{selectedJob.location}</span>
+                <span>{selectedJob.category}</span>
+                <span>{selectedJob.level}</span>
+                <span>{selectedJob.type}</span>
+              </div>
+
+              {selectedJob.salary && (
+                <p className="details-salary">{selectedJob.salary}</p>
+              )}
+
+              <div className="details-section">
+                <h4>Job Description</h4>
+                <p>{selectedJob.description}</p>
+              </div>
+
+              <div className="details-section">
+                <h4>Why this matches Pivot Tech</h4>
+                <p>
+                  This opportunity matches career pathways for students and
+                  alumni building skills in software, data, cybersecurity, and
+                  modern technology careers.
+                </p>
+              </div>
+
+              <a
+                className={
+                  selectedJob.applyUrl && selectedJob.applyUrl !== "#"
+                    ? "apply-btn"
+                    : "apply-btn disabled-apply-btn"
+                }
+                href={selectedJob.applyUrl || "#"}
+                target="_blank"
+                rel="noreferrer"
+              >
+                {selectedJob.applyUrl && selectedJob.applyUrl !== "#"
+                  ? "Apply Now"
+                  : "Application Link Missing"}
+              </a>
+
+              <button className="save-btn">Save Job</button>
+            </div>
+          ) : (
+            <div className="details-card">
+              <h2>Select a job</h2>
+              <p>Click a job row to view full details here.</p>
+            </div>
+          )}
+        </aside>
+      </section>
+    </main>
   );
 }

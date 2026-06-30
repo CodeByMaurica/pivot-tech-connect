@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import "./App.css";
 
 import PublicHome from "./screens/PublicHome";
@@ -17,27 +17,13 @@ export type JobSearchFilters = {
   level: string;
 };
 
-const defaultJobFilters: JobSearchFilters = {
-  keyword: "",
-  category: "All",
-  state: "All",
-  workType: "All",
-  level: "All",
-};
-
 function App() {
-  const [activeScreen, setActiveScreen] = useState("PublicHome");
-  const [userRole, setUserRole] = useState("");
-  const [jobFilters, setJobFilters] = useState<JobSearchFilters>(defaultJobFilters);
-
-  useEffect(() => {
-    const savedRole = localStorage.getItem("pivotUserRole");
-
-    if (savedRole) {
-      setUserRole(savedRole);
-      setActiveScreen("Dashboard");
-    }
-  }, []);
+  const [userRole, setUserRole] = useState<string>(() => {
+    return localStorage.getItem("pivotUserRole") ?? "";
+  });
+  const [activeScreen, setActiveScreen] = useState<string>(() => {
+    return localStorage.getItem("pivotUserRole") ? "Dashboard" : "PublicHome";
+  });
 
   function handleLogin(role: string) {
     setUserRole(role);
@@ -51,13 +37,11 @@ function App() {
     setActiveScreen("PublicHome");
   }
 
-  function openJobsWithFilters(filters: JobSearchFilters) {
-    setJobFilters(filters);
+  function openJobsWithFilters() {
     setActiveScreen("JobOpenings");
   }
 
   function openAllJobs() {
-    setJobFilters(defaultJobFilters);
     setActiveScreen("JobOpenings");
   }
 
@@ -76,7 +60,7 @@ function App() {
     if (activeScreen === "Dashboard") return <Dashboard />;
 
     if (activeScreen === "JobOpenings") {
-      return <JobOpenings initialFilters={jobFilters} />;
+      return <JobOpenings />;
     }
 
     if (activeScreen === "Resources") return <Resources />;
