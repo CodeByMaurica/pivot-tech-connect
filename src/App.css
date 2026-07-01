@@ -1500,3 +1500,51 @@ a {
   font-weight: 900;
   cursor: pointer;
 }
+
+.job-info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin: 20px 0;
+}
+
+.job-info-grid div {
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  padding: 12px;
+}
+
+.job-info-grid span {
+  display: block;
+  color: #667085;
+  font-size: 0.78rem;
+  font-weight: 800;
+  margin-bottom: 5px;
+}
+
+.job-info-grid strong {
+  color: #0b1f3a;
+  font-size: 0.95rem;
+}
+
+.full-description-toggle {
+  margin-top: 22px;
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  padding: 14px;
+}
+
+.full-description-toggle summary {
+  cursor: pointer;
+  font-weight: 900;
+  color: #0b1f3a;
+}
+
+.full-description-toggle p {
+  margin-top: 14px;
+  color: #475467;
+  line-height: 1.7;
+  white-space: pre-line;
+}

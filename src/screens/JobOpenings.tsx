@@ -24,6 +24,40 @@ function shortenText(text: string, limit = 220): string {
   return text.length > limit ? `${text.slice(0, limit)}...` : text;
 }
 
+function organizeDescription(description: string) {
+  const text = description || "No description available.";
+
+  const responsibilitiesIndex = text.search(
+    /responsibilities|what you'll do|what you will do|key responsibilities/i
+  );
+
+  const qualificationsIndex = text.search(
+    /qualifications|requirements|about you|what you bring|basic qualifications|preferred qualifications/i
+  );
+
+  const overview =
+    responsibilitiesIndex > 0
+      ? text.slice(0, responsibilitiesIndex).trim()
+      : text.slice(0, 700).trim();
+
+  const responsibilities =
+    responsibilitiesIndex > -1 && qualificationsIndex > responsibilitiesIndex
+      ? text.slice(responsibilitiesIndex, qualificationsIndex).trim()
+      : "";
+
+  const qualifications =
+    qualificationsIndex > -1
+      ? text.slice(qualificationsIndex, qualificationsIndex + 1400).trim()
+      : "";
+
+  return {
+    overview,
+    responsibilities,
+    qualifications,
+    fullDescription: text,
+  };
+}
+
 export default function JobOpenings() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
@@ -97,6 +131,10 @@ export default function JobOpenings() {
     setLevelFilter("All Levels");
     setTypeFilter("All Types");
   }
+
+  const organizedJob = selectedJob
+    ? organizeDescription(selectedJob.description)
+    : null;
 
   return (
     <main className="jobs-page redesigned-jobs-page">
@@ -205,6 +243,7 @@ export default function JobOpenings() {
                   <p className="job-meta-line">
                     {job.location} • {job.type} • {job.level}
                   </p>
+
                   <p className="job-short-description">
                     {shortenText(job.description)}
                   </p>
@@ -232,7 +271,7 @@ export default function JobOpenings() {
         </section>
 
         <aside className="job-detail-panel">
-          {selectedJob ? (
+          {selectedJob && organizedJob ? (
             <div className="job-detail-card">
               <div className="job-detail-top">
                 <div>
@@ -269,10 +308,51 @@ export default function JobOpenings() {
                 <p className="details-salary">{selectedJob.salary}</p>
               )}
 
-              <div className="details-section">
-                <h4>Job Description</h4>
-                <p>{selectedJob.description}</p>
+              <div className="job-info-grid">
+                <div>
+                  <span>Company</span>
+                  <strong>{selectedJob.company}</strong>
+                </div>
+
+                <div>
+                  <span>Location</span>
+                  <strong>{selectedJob.location}</strong>
+                </div>
+
+                <div>
+                  <span>Type</span>
+                  <strong>{selectedJob.type}</strong>
+                </div>
+
+                <div>
+                  <span>Posted</span>
+                  <strong>{selectedJob.postedDate || "Recently posted"}</strong>
+                </div>
               </div>
+
+              <div className="details-section">
+                <h4>Overview</h4>
+                <p>{organizedJob.overview}</p>
+              </div>
+
+              {organizedJob.responsibilities && (
+                <div className="details-section">
+                  <h4>Responsibilities</h4>
+                  <p>{organizedJob.responsibilities}</p>
+                </div>
+              )}
+
+              {organizedJob.qualifications && (
+                <div className="details-section">
+                  <h4>Qualifications</h4>
+                  <p>{organizedJob.qualifications}</p>
+                </div>
+              )}
+
+              <details className="full-description-toggle">
+                <summary>View full job description</summary>
+                <p>{organizedJob.fullDescription}</p>
+              </details>
 
               <div className="details-action-row">
                 <a
