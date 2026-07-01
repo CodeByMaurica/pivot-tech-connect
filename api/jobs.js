@@ -1,8 +1,6 @@
 export default async function handler(req, res) {
-  const keyword =
-    req.query.keyword || "software developer cybersecurity data analytics";
-  const location = req.query.location || "Iowa Tennessee Louisiana Remote";
-  const page = req.query.page || "1";
+  const keyword = req.query.keyword || "";
+  const location = req.query.location || "United States";
 
   const RAPIDAPI_KEY = process.env.RAPIDAPI_KEY;
 
@@ -12,11 +10,25 @@ export default async function handler(req, res) {
     });
   }
 
-  const searchQuery = `${keyword} jobs in ${location}`;
+  const defaultSearches = [
+    "software developer",
+    "frontend developer",
+    "react developer",
+    "javascript developer",
+    "full stack developer",
+    "junior software developer",
+    "cybersecurity analyst",
+    "entry level cybersecurity analyst",
+    "soc analyst",
+    "data analyst",
+    "junior data analyst",
+    "software developer internship",
+    "cybersecurity internship",
+    "data analyst internship",
+    "software developer apprenticeship",
+  ];
 
-  const url = `https://jsearch.p.rapidapi.com/search-v2?query=${encodeURIComponent(
-    searchQuery
-  )}&page=${page}&num_pages=20&country=us&date_posted=all&work_from_home=true&employment_types=FULLTIME,CONTRACTOR,PARTTIME,INTERN`;
+  const searchTerms = keyword ? [keyword, ...defaultSearches] : defaultSearches;
 
   function getCategory(title = "", description = "") {
     const text = `${title} ${description}`.toLowerCase();
@@ -72,27 +84,37 @@ export default async function handler(req, res) {
     return "Mid Level";
   }
 
-  try {
-    const response = await fetch(url, {
-      method: "GET",
-      headers: {
-        "x-rapidapi-key": RAPIDAPI_KEY,
-        "x-rapidapi-host": "jsearch.p.rapidapi.com",
-      },
-    });
+  async function fetchJSearchJobs(searchTerm) {
+    const searchQuery = `${searchTerm} jobs in ${location}`;
 
-    if (!response.ok) {
-      const errorText = await response.text();
+    const url = `https://jsearch.p.rapidapi.com/search-v2?query=${encodeURIComponent(
+      searchQuery
+    )}&num_pages=3&country=us&date_posted=all&employment_types=FULLTIME,CONTRACTOR,PARTTIME,INTERN`;
 
-      return res.status(response.status).json({
-        error: "JSearch request failed",
-        details: errorText,
+    try {
+      const response = await fetch(url, {
+        method: "GET",
+        headers: {
+          "x-rapidapi-key": RAPIDAPI_KEY,
+          "x-rapidapi-host": "jsearch.p.rapidapi.com",
+        },
       });
+
+      if (!response.ok) {
+        return [];
+      }
+
+      const data = await response.json();
+
+      return Array.isArray(data.data?.jobs) ? data.data.jobs : [];
+    } catch {
+      return [];
     }
+  }
 
-    const data = await response.json();
-
-    const rawJobs = Array.isArray(data.data?.jobs) ? data.data.jobs : [];
+  try {
+    const jobResults = await Promise.all(searchTerms.map(fetchJSearchJobs));
+    const rawJobs = jobResults.flat();
 
     const uniqueJobs = new Map();
 
