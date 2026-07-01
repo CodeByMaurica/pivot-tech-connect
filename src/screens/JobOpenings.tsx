@@ -1,19 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-
-type Job = {
-  id: string;
-  title: string;
-  company: string;
-  location: string;
-  category: string;
-  level: string;
-  type: string;
-  salary?: string;
-  description: string;
-  applyUrl?: string;
-  postedDate?: string;
-  source?: string;
-};
+import { getRealJobs, type Job } from "../services/jobsApi";
 
 const categories = [
   "All Categories",
@@ -33,46 +19,9 @@ const jobTypes = [
   "Apprenticeship",
 ];
 
-function cleanText(value: unknown): string {
-  if (typeof value !== "string") return "";
-  return value.replace(/<[^>]*>/g, "").trim();
-}
-
 function shortenText(text: string, limit = 220): string {
+  if (!text) return "No description available.";
   return text.length > limit ? `${text.slice(0, limit)}...` : text;
-}
-
-function formatJob(job: any, index: number): Job {
-  const title = cleanText(job.title ?? job.job_title) || "Untitled Job";
-
-  return {
-    id: String(job.id ?? job.job_id ?? index + 1),
-    title,
-    company:
-      cleanText(job.company ?? job.employer_name ?? job.company_name) ||
-      "Unknown Company",
-    location: cleanText(job.location ?? job.job_location) || "Remote",
-    category: cleanText(job.category) || "Technology",
-    level:
-      cleanText(job.level) ||
-      (title.toLowerCase().includes("senior")
-        ? "Senior Level"
-        : title.toLowerCase().includes("junior") ||
-          title.toLowerCase().includes("entry")
-        ? "Entry Level"
-        : "Mid Level"),
-    type:
-      cleanText(job.type ?? job.job_employment_type ?? job.employment_type) ||
-      "Full-time",
-    salary: cleanText(job.salary ?? job.job_salary_string) || "",
-    description:
-      cleanText(job.description ?? job.job_description) ||
-      "No description available.",
-    applyUrl: job.applyUrl ?? job.job_apply_link ?? job.job_google_link ?? "#",
-    postedDate:
-      cleanText(job.postedDate ?? job.job_posted_at) || "Recently posted",
-    source: cleanText(job.source ?? job.job_publisher) || "JSearch",
-  };
 }
 
 export default function JobOpenings() {
@@ -98,25 +47,10 @@ export default function JobOpenings() {
         setIsLoading(true);
         setErrorMessage("");
 
-        const response = await fetch(
-          `/api/jobs?keyword=${encodeURIComponent(
-            keyword || "software developer"
-          )}&location=${encodeURIComponent(location || "United States")}`
-        );
+        const data = await getRealJobs(keyword, location);
 
-        if (!response.ok) {
-          throw new Error("Jobs API failed");
-        }
-
-        const data = await response.json();
-        const rawJobs = Array.isArray(data) ? data : [];
-
-        const formattedJobs = rawJobs.map((job, index) =>
-          formatJob(job, index)
-        );
-
-        setJobs(formattedJobs);
-        setSelectedJob(formattedJobs[0] ?? null);
+        setJobs(data);
+        setSelectedJob(data[0] ?? null);
       } catch (error) {
         console.error("Job loading error:", error);
         setJobs([]);
@@ -132,11 +66,15 @@ export default function JobOpenings() {
 
   const filteredJobs = useMemo(() => {
     return jobs.filter((job) => {
+      const categoryText = `
+        ${job.title}
+        ${job.category}
+        ${job.description}
+      `.toLowerCase();
+
       const matchesCategory =
         categoryFilter === "All Categories" ||
-        job.category.toLowerCase().includes(categoryFilter.toLowerCase()) ||
-        job.title.toLowerCase().includes(categoryFilter.toLowerCase()) ||
-        job.description.toLowerCase().includes(categoryFilter.toLowerCase());
+        categoryText.includes(categoryFilter.toLowerCase());
 
       const matchesLevel =
         levelFilter === "All Levels" || job.level === levelFilter;
@@ -237,7 +175,9 @@ export default function JobOpenings() {
           <div className="job-list-header">
             <div>
               <h2>
-                {isLoading ? "Loading jobs..." : `${filteredJobs.length} jobs found`}
+                {isLoading
+                  ? "Loading jobs..."
+                  : `${filteredJobs.length} jobs found`}
               </h2>
               <p>
                 Results for <strong>{keyword}</strong> in{" "}
@@ -272,12 +212,12 @@ export default function JobOpenings() {
                   <div className="job-badges">
                     <span>{job.category}</span>
                     {job.salary && <span>{job.salary}</span>}
-                    <span>{job.source}</span>
+                    <span>{job.source || "Live Jobs"}</span>
                   </div>
                 </div>
 
                 <div className="job-list-side">
-                  <span>{job.postedDate}</span>
+                  <span>{job.postedDate || "Recently posted"}</span>
                 </div>
               </button>
             ))}
@@ -322,7 +262,7 @@ export default function JobOpenings() {
                 <span>{selectedJob.category}</span>
                 <span>{selectedJob.level}</span>
                 <span>{selectedJob.type}</span>
-                <span>{selectedJob.source}</span>
+                <span>{selectedJob.source || "Live Jobs"}</span>
               </div>
 
               {selectedJob.salary && (

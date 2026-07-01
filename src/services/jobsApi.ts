@@ -3,26 +3,23 @@ export type Job = {
   title: string;
   company: string;
   location: string;
-  state: string;
   category: string;
-  workType: string;
   level: string;
-  opportunityType: string;
-  salary: string;
-  link: string;
+  type: string;
+  salary?: string;
   description: string;
-  source: string;
-  datePosted: string;
-  applicationStatus?: string;
+  applyUrl?: string;
+  postedDate?: string;
+  source?: string;
 };
 
 export async function getRealJobs(
-  searchTerm?: string,
+  searchTerm = "software developer",
   location = "United States"
 ): Promise<Job[]> {
   const response = await fetch(
     `/api/jobs?keyword=${encodeURIComponent(
-      searchTerm || "software developer"
+      searchTerm
     )}&location=${encodeURIComponent(location)}`
   );
 
