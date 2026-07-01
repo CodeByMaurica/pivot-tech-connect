@@ -11,7 +11,7 @@ export default async function handler(req, res) {
     });
   }
 
-  const searchQuery = `${keyword} in ${location}`;
+  const searchQuery = `${keyword} jobs in ${location}`;
 
   const url = `https://jsearch.p.rapidapi.com/search?query=${encodeURIComponent(
     searchQuery
@@ -43,20 +43,14 @@ export default async function handler(req, res) {
       id: String(job.job_id),
       title: job.job_title || "Untitled Job",
       company: job.employer_name || "Unknown Company",
-      location: job.job_location || job.job_country || "Remote",
+      location: job.job_location || "Remote",
       category: "Technology",
       level: "Entry Level",
       type: job.job_employment_type || "Full-time",
-      salary:
-        job.job_salary_string ||
-        (job.job_min_salary && job.job_max_salary
-          ? `$${Math.round(job.job_min_salary).toLocaleString()} - $${Math.round(
-              job.job_max_salary
-            ).toLocaleString()}`
-          : ""),
+      salary: job.job_salary_string || "",
       description: job.job_description || "No description available.",
       applyUrl: job.job_apply_link || job.job_google_link || "#",
-      postedDate: job.job_posted_at || job.job_posted_at_datetime_utc || "Recently posted",
+      postedDate: job.job_posted_at || "Recently posted",
     }));
 
     return res.status(200).json(jobs);

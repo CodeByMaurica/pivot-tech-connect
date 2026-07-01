@@ -187,17 +187,7 @@ export default function JobOpenings() {
 
         const data = await response.json();
 
-        const rawJobs = Array.isArray(data)
-          ? data
-          : Array.isArray(data.jobs)
-          ? data.jobs
-          : Array.isArray(data.results)
-          ? data.results
-          : Array.isArray(data.data)
-          ? data.data
-          : Array.isArray(data.items)
-          ? data.items
-          : [];
+        const rawJobs = Array.isArray(data) ? data : [];
 
         const formattedJobs = rawJobs.map((job: any, index: number) =>
           formatJob(job, index)
