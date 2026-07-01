@@ -12,173 +12,96 @@ type Job = {
   description: string;
   applyUrl?: string;
   postedDate?: string;
+  source?: string;
 };
 
-const fallbackJobs: Job[] = [
-  {
-    id: "1",
-    title: "Junior Software Developer",
-    company: "TechBridge Solutions",
-    location: "Remote",
-    category: "Software Development",
-    level: "Entry Level",
-    type: "Full-time",
-    salary: "$62,000 - $75,000",
-    postedDate: "Today",
-    description:
-      "Build and maintain React, TypeScript, and API-driven web applications for client-facing platforms.",
-    applyUrl: "#",
-  },
-  {
-    id: "2",
-    title: "Cybersecurity Analyst Apprentice",
-    company: "SecurePath",
-    location: "Iowa",
-    category: "Cybersecurity",
-    level: "Apprenticeship",
-    type: "Apprenticeship",
-    salary: "$22 - $28/hr",
-    postedDate: "1 day ago",
-    description:
-      "Support security monitoring, incident response, vulnerability reviews, and documentation.",
-    applyUrl: "#",
-  },
-  {
-    id: "3",
-    title: "Data Analytics Intern",
-    company: "InsightWorks",
-    location: "Tennessee",
-    category: "Data Analytics",
-    level: "Internship",
-    type: "Internship",
-    salary: "$20/hr",
-    postedDate: "2 days ago",
-    description:
-      "Assist with dashboard reporting, SQL queries, Excel analysis, and business intelligence projects.",
-    applyUrl: "#",
-  },
-];
-
-const filters = [
+const categories = [
+  "All Categories",
   "Software Development",
   "Cybersecurity",
   "Data Analytics",
-  "Iowa",
-  "Tennessee",
-  "Louisiana",
-  "Remote",
-  "Entry Level",
-  "Mid Level",
-  "Senior Level",
+];
+
+const levels = ["All Levels", "Entry Level", "Mid Level", "Senior Level"];
+
+const jobTypes = [
+  "All Types",
+  "Full-time",
+  "Part-time",
+  "Contractor",
   "Internship",
   "Apprenticeship",
-  "Contract",
 ];
 
 function cleanText(value: unknown): string {
   if (typeof value !== "string") return "";
-
   return value.replace(/<[^>]*>/g, "").trim();
 }
 
+function shortenText(text: string, limit = 220): string {
+  return text.length > limit ? `${text.slice(0, limit)}...` : text;
+}
+
 function formatJob(job: any, index: number): Job {
-  const companyName =
-    typeof job.company === "string"
-      ? job.company
-      : job.company?.display_name;
-
-  const locationName =
-    typeof job.location === "string"
-      ? job.location
-      : job.location?.display_name;
-
-  const categoryName =
-    typeof job.category === "string"
-      ? job.category
-      : job.category?.label;
+  const title = cleanText(job.title ?? job.job_title) || "Untitled Job";
 
   return {
-    id: String(job.id ?? job.job_id ?? job.slug ?? index + 1),
-    title: cleanText(job.title ?? job.job_title ?? job.name) || "Untitled Job",
+    id: String(job.id ?? job.job_id ?? index + 1),
+    title,
     company:
-      cleanText(
-        companyName ??
-          job.company_name ??
-          job.companyName ??
-          job.employer
-      ) || "Unknown Company",
-    location:
-      cleanText(
-        locationName ??
-          job.job_location ??
-          job.candidate_required_location ??
-          job.city
-      ) || "Remote",
-    category:
-      cleanText(categoryName ?? job.job_category ?? job.industry) ||
-      "Technology",
+      cleanText(job.company ?? job.employer_name ?? job.company_name) ||
+      "Unknown Company",
+    location: cleanText(job.location ?? job.job_location) || "Remote",
+    category: cleanText(job.category) || "Technology",
     level:
-      cleanText(job.level ?? job.seniority ?? job.experience_level) ||
-      "Entry Level",
+      cleanText(job.level) ||
+      (title.toLowerCase().includes("senior")
+        ? "Senior Level"
+        : title.toLowerCase().includes("junior") ||
+          title.toLowerCase().includes("entry")
+        ? "Entry Level"
+        : "Mid Level"),
     type:
-      cleanText(job.type ?? job.job_type ?? job.employment_type) ||
-      cleanText(job.contract_time ?? job.contract_type) ||
+      cleanText(job.type ?? job.job_employment_type ?? job.employment_type) ||
       "Full-time",
-    salary:
-      cleanText(job.salary ?? job.salary_range ?? job.compensation) ||
-      (job.salary_min && job.salary_max
-        ? `$${Math.round(job.salary_min).toLocaleString()} - $${Math.round(
-            job.salary_max
-          ).toLocaleString()}`
-        : ""),
+    salary: cleanText(job.salary ?? job.job_salary_string) || "",
     description:
-      cleanText(
-        job.description ?? job.job_description ?? job.snippet ?? job.summary
-      ) || "No description available.",
-    applyUrl:
-      job.applyUrl ??
-      job.apply_url ??
-      job.job_apply_link ??
-      job.apply_link ??
-      job.redirect_url ??
-      job.application_url ??
-      job.url ??
-      job.job_url ??
-      "#",
+      cleanText(job.description ?? job.job_description) ||
+      "No description available.",
+    applyUrl: job.applyUrl ?? job.job_apply_link ?? job.job_google_link ?? "#",
     postedDate:
-      cleanText(
-        job.postedDate ??
-          job.posted_date ??
-          job.publication_date ??
-          job.created_at ??
-          job.created
-      ) || "Recently posted",
+      cleanText(job.postedDate ?? job.job_posted_at) || "Recently posted",
+    source: cleanText(job.source ?? job.job_publisher) || "JSearch",
   };
 }
 
 export default function JobOpenings() {
-  const [jobs, setJobs] = useState<Job[]>(fallbackJobs);
-  const [selectedJob, setSelectedJob] = useState<Job>(fallbackJobs[0]);
-  const [activeFilters, setActiveFilters] = useState<string[]>([]);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [showFilters, setShowFilters] = useState(true);
+  const [jobs, setJobs] = useState<Job[]>([]);
+  const [selectedJob, setSelectedJob] = useState<Job | null>(null);
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearch(searchTerm);
-    }, 500);
+  const [keyword, setKeyword] = useState("software developer");
+  const [location, setLocation] = useState("United States");
 
-    return () => clearTimeout(timer);
-  }, [searchTerm]);
+  const [searchKeyword, setSearchKeyword] = useState("software developer");
+  const [searchLocation, setSearchLocation] = useState("United States");
+
+  const [categoryFilter, setCategoryFilter] = useState("All Categories");
+  const [levelFilter, setLevelFilter] = useState("All Levels");
+  const [typeFilter, setTypeFilter] = useState("All Types");
+
+  const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
   useEffect(() => {
     async function loadJobs() {
       try {
+        setIsLoading(true);
+        setErrorMessage("");
+
         const response = await fetch(
           `/api/jobs?keyword=${encodeURIComponent(
-            debouncedSearch || "software developer"
-          )}&location=${encodeURIComponent("United States")}`
+            keyword || "software developer"
+          )}&location=${encodeURIComponent(location || "United States")}`
         );
 
         if (!response.ok) {
@@ -186,169 +109,220 @@ export default function JobOpenings() {
         }
 
         const data = await response.json();
-
         const rawJobs = Array.isArray(data) ? data : [];
 
-        const formattedJobs = rawJobs.map((job: any, index: number) =>
+        const formattedJobs = rawJobs.map((job, index) =>
           formatJob(job, index)
         );
 
-        if (formattedJobs.length > 0) {
-          setJobs(formattedJobs);
-          setSelectedJob(formattedJobs[0]);
-        } else {
-          setJobs(fallbackJobs);
-          setSelectedJob(fallbackJobs[0]);
-        }
+        setJobs(formattedJobs);
+        setSelectedJob(formattedJobs[0] ?? null);
       } catch (error) {
         console.error("Job loading error:", error);
-        setJobs(fallbackJobs);
-        setSelectedJob(fallbackJobs[0]);
+        setJobs([]);
+        setSelectedJob(null);
+        setErrorMessage("Unable to load jobs right now. Please try again.");
+      } finally {
+        setIsLoading(false);
       }
     }
 
     loadJobs();
-  }, [debouncedSearch]);
-
-  function toggleFilter(filter: string) {
-    setActiveFilters((currentFilters) =>
-      currentFilters.includes(filter)
-        ? currentFilters.filter((item) => item !== filter)
-        : [...currentFilters, filter]
-    );
-  }
+  }, [keyword, location]);
 
   const filteredJobs = useMemo(() => {
     return jobs.filter((job) => {
-      const searchableText = `
-        ${job.title}
-        ${job.company}
-        ${job.location}
-        ${job.category}
-        ${job.level}
-        ${job.type}
-      `.toLowerCase();
+      const matchesCategory =
+        categoryFilter === "All Categories" ||
+        job.category.toLowerCase().includes(categoryFilter.toLowerCase()) ||
+        job.title.toLowerCase().includes(categoryFilter.toLowerCase()) ||
+        job.description.toLowerCase().includes(categoryFilter.toLowerCase());
 
-      const matchesSearch = searchableText.includes(searchTerm.toLowerCase());
+      const matchesLevel =
+        levelFilter === "All Levels" || job.level === levelFilter;
 
-      const matchesFilters =
-        activeFilters.length === 0 ||
-        activeFilters.some((filter) =>
-          searchableText.includes(filter.toLowerCase())
-        );
+      const matchesType =
+        typeFilter === "All Types" ||
+        job.type.toLowerCase().includes(typeFilter.toLowerCase());
 
-      return matchesSearch && matchesFilters;
+      return matchesCategory && matchesLevel && matchesType;
     });
-  }, [jobs, searchTerm, activeFilters]);
+  }, [jobs, categoryFilter, levelFilter, typeFilter]);
+
+  function handleSearch() {
+    setKeyword(searchKeyword);
+    setLocation(searchLocation);
+  }
+
+  function clearFilters() {
+    setCategoryFilter("All Categories");
+    setLevelFilter("All Levels");
+    setTypeFilter("All Types");
+  }
 
   return (
-    <main className="jobs-page">
-      <section className="jobs-header">
-        <div>
-          <p className="eyebrow">Pivot Tech Connect</p>
-          <h1>Job Openings</h1>
-          <p>
-            Discover software, cybersecurity, data, internship, apprenticeship,
-            and remote opportunities.
-          </p>
-        </div>
+    <main className="jobs-page redesigned-jobs-page">
+      <section className="jobs-hero">
+        <p className="eyebrow">Pivot Tech Connect</p>
+        <h1>Find Your Next Tech Opportunity</h1>
+        <p>
+          Search live software, cybersecurity, data, internship, apprenticeship,
+          remote, and entry-level opportunities.
+        </p>
       </section>
 
-      <section className="jobs-search-panel">
-        <div className="filter-toggle-row">
-          <button
-            className="filter-menu-btn"
-            onClick={() => setShowFilters(!showFilters)}
+      <section className="job-search-card">
+        <div className="job-search-grid">
+          <label>
+            <span>What</span>
+            <input
+              type="text"
+              placeholder="Job title, company, or skill"
+              value={searchKeyword}
+              onChange={(event) => setSearchKeyword(event.target.value)}
+            />
+          </label>
+
+          <label>
+            <span>Where</span>
+            <input
+              type="text"
+              placeholder="City, state, or remote"
+              value={searchLocation}
+              onChange={(event) => setSearchLocation(event.target.value)}
+            />
+          </label>
+        </div>
+
+        <div className="job-filter-row">
+          <select
+            value={categoryFilter}
+            onChange={(event) => setCategoryFilter(event.target.value)}
           >
-            ☰ Filters
+            {categories.map((category) => (
+              <option key={category}>{category}</option>
+            ))}
+          </select>
+
+          <select
+            value={levelFilter}
+            onChange={(event) => setLevelFilter(event.target.value)}
+          >
+            {levels.map((level) => (
+              <option key={level}>{level}</option>
+            ))}
+          </select>
+
+          <select
+            value={typeFilter}
+            onChange={(event) => setTypeFilter(event.target.value)}
+          >
+            {jobTypes.map((type) => (
+              <option key={type}>{type}</option>
+            ))}
+          </select>
+
+          <button className="search-jobs-btn" onClick={handleSearch}>
+            Search Jobs
           </button>
 
-          {activeFilters.length > 0 && (
-            <button
-              className="clear-filters-btn top-clear-btn"
-              onClick={() => setActiveFilters([])}
-            >
-              Clear filters
-            </button>
-          )}
-        </div>
-
-        {showFilters && (
-          <div className="top-filter-list">
-            {filters.map((filter) => (
-              <button
-                key={filter}
-                className={
-                  activeFilters.includes(filter)
-                    ? "filter-pill active"
-                    : "filter-pill"
-                }
-                onClick={() => toggleFilter(filter)}
-              >
-                {filter}
-              </button>
-            ))}
-          </div>
-        )}
-
-        <div className="jobs-search-box centered-search">
-          <input
-            type="text"
-            placeholder="Search jobs, companies, skills, or locations"
-            value={searchTerm}
-            onChange={(event) => setSearchTerm(event.target.value)}
-          />
+          <button className="clear-job-filters-btn" onClick={clearFilters}>
+            Clear Filters
+          </button>
         </div>
       </section>
 
-      <section className="jobs-layout no-sidebar-layout">
-        <section className="jobs-results">
-          <div className="results-topbar">
+      <section className="job-board-layout">
+        <section className="job-list-panel">
+          <div className="job-list-header">
             <div>
-              <h2>{filteredJobs.length} jobs found</h2>
-              <p>Showing best matches for Pivot Tech students and alumni.</p>
+              <h2>
+                {isLoading ? "Loading jobs..." : `${filteredJobs.length} jobs found`}
+              </h2>
+              <p>
+                Results for <strong>{keyword}</strong> in{" "}
+                <strong>{location}</strong>
+              </p>
             </div>
           </div>
 
-          <div className="job-row-list">
+          {errorMessage && <p className="job-error">{errorMessage}</p>}
+
+          <div className="job-list">
             {filteredJobs.map((job) => (
               <button
                 key={job.id}
                 className={
-                  selectedJob?.id === job.id ? "job-row selected" : "job-row"
+                  selectedJob?.id === job.id
+                    ? "job-list-item active"
+                    : "job-list-item"
                 }
                 onClick={() => setSelectedJob(job)}
               >
-                <div className="job-row-main">
+                <div className="job-list-main">
                   <h3>{job.title}</h3>
-                  <p className="company-name">{job.company}</p>
-                  <p className="job-meta">
-                    {job.location} • {job.level} • {job.type}
+                  <p className="job-company">{job.company}</p>
+                  <p className="job-meta-line">
+                    {job.location} • {job.type} • {job.level}
                   </p>
-                  <p className="job-preview">{job.description}</p>
+                  <p className="job-short-description">
+                    {shortenText(job.description)}
+                  </p>
+
+                  <div className="job-badges">
+                    <span>{job.category}</span>
+                    {job.salary && <span>{job.salary}</span>}
+                    <span>{job.source}</span>
+                  </div>
                 </div>
 
-                <div className="job-row-side">
-                  <span>{job.postedDate || "Recently posted"}</span>
-                  {job.salary && <strong>{job.salary}</strong>}
+                <div className="job-list-side">
+                  <span>{job.postedDate}</span>
                 </div>
               </button>
             ))}
+
+            {!isLoading && filteredJobs.length === 0 && (
+              <div className="empty-jobs-message">
+                <h3>No jobs found</h3>
+                <p>Try changing the keyword, location, or filters.</p>
+              </div>
+            )}
           </div>
         </section>
 
-        <aside className="job-details-panel">
+        <aside className="job-detail-panel">
           {selectedJob ? (
-            <div className="details-card">
-              <p className="details-label">Selected Job</p>
-              <h2>{selectedJob.title}</h2>
-              <h3>{selectedJob.company}</h3>
+            <div className="job-detail-card">
+              <div className="job-detail-top">
+                <div>
+                  <p className="details-label">Selected Job</p>
+                  <h2>{selectedJob.title}</h2>
+                  <h3>{selectedJob.company}</h3>
+                  <p>{selectedJob.location}</p>
+                </div>
+
+                <a
+                  className={
+                    selectedJob.applyUrl && selectedJob.applyUrl !== "#"
+                      ? "apply-btn detail-apply-btn"
+                      : "apply-btn disabled-apply-btn"
+                  }
+                  href={selectedJob.applyUrl || "#"}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  {selectedJob.applyUrl && selectedJob.applyUrl !== "#"
+                    ? "Apply Now"
+                    : "Application Link Missing"}
+                </a>
+              </div>
 
               <div className="details-tags">
-                <span>{selectedJob.location}</span>
                 <span>{selectedJob.category}</span>
                 <span>{selectedJob.level}</span>
                 <span>{selectedJob.type}</span>
+                <span>{selectedJob.source}</span>
               </div>
 
               {selectedJob.salary && (
@@ -360,36 +334,27 @@ export default function JobOpenings() {
                 <p>{selectedJob.description}</p>
               </div>
 
-              <div className="details-section">
-                <h4>Why this matches Pivot Tech</h4>
-                <p>
-                  This opportunity matches career pathways for students and
-                  alumni building skills in software, data, cybersecurity, and
-                  modern technology careers.
-                </p>
+              <div className="details-action-row">
+                <a
+                  className={
+                    selectedJob.applyUrl && selectedJob.applyUrl !== "#"
+                      ? "apply-btn"
+                      : "apply-btn disabled-apply-btn"
+                  }
+                  href={selectedJob.applyUrl || "#"}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Apply Now
+                </a>
+
+                <button className="save-btn">Save Job</button>
               </div>
-
-              <a
-                className={
-                  selectedJob.applyUrl && selectedJob.applyUrl !== "#"
-                    ? "apply-btn"
-                    : "apply-btn disabled-apply-btn"
-                }
-                href={selectedJob.applyUrl || "#"}
-                target="_blank"
-                rel="noreferrer"
-              >
-                {selectedJob.applyUrl && selectedJob.applyUrl !== "#"
-                  ? "Apply Now"
-                  : "Application Link Missing"}
-              </a>
-
-              <button className="save-btn">Save Job</button>
             </div>
           ) : (
-            <div className="details-card">
+            <div className="job-detail-card">
               <h2>Select a job</h2>
-              <p>Click a job row to view full details here.</p>
+              <p>Click a job from the list to view the full details.</p>
             </div>
           )}
         </aside>

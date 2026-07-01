@@ -1,6 +1,7 @@
 export default async function handler(req, res) {
-  const keyword = req.query.keyword || "developer";
-  const location = req.query.location || "chicago";
+  const keyword =
+    req.query.keyword || "software developer cybersecurity data analytics";
+  const location = req.query.location || "United States";
   const page = req.query.page || "1";
 
   const RAPIDAPI_KEY = process.env.RAPIDAPI_KEY;
@@ -15,7 +16,7 @@ export default async function handler(req, res) {
 
   const url = `https://jsearch.p.rapidapi.com/search-v2?query=${encodeURIComponent(
     searchQuery
-  )}&page=${page}&num_pages=1&country=us&date_posted=all`;
+  )}&page=${page}&num_pages=1&country=us&date_posted=all&work_from_home=true&employment_types=FULLTIME,CONTRACTOR,PARTTIME,INTERN`;
 
   try {
     const response = await fetch(url, {
@@ -36,7 +37,6 @@ export default async function handler(req, res) {
     }
 
     const data = await response.json();
-
     const rawJobs = Array.isArray(data.data?.jobs) ? data.data.jobs : [];
 
     const jobs = rawJobs.map((job) => {
@@ -46,12 +46,19 @@ export default async function handler(req, res) {
         id: String(job.job_id),
         title,
         company: job.employer_name || "Unknown Company",
-        location: job.job_location || "Remote",
-        category: "Technology",
+        location: job.job_is_remote
+          ? "Remote"
+          : job.job_location || "United States",
+        category: title.toLowerCase().includes("cyber")
+          ? "Cybersecurity"
+          : title.toLowerCase().includes("data")
+          ? "Data Analytics"
+          : "Software Development",
         level: title.toLowerCase().includes("senior")
           ? "Senior Level"
           : title.toLowerCase().includes("junior") ||
-            title.toLowerCase().includes("entry")
+            title.toLowerCase().includes("entry") ||
+            title.toLowerCase().includes("intern")
           ? "Entry Level"
           : "Mid Level",
         type: job.job_employment_type || "Full-time",
