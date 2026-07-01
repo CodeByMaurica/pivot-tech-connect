@@ -19,6 +19,9 @@ const jobTypes = [
   "Apprenticeship",
 ];
 
+type JobStatus = "Saved" | "Applied" | "Interviewing" | "Offer";
+type JobTab = "All Jobs" | "Saved" | "Applied" | "Interviewing" | "Offers";
+
 function shortenText(text: string, limit = 220): string {
   if (!text) return "No description available.";
   return text.length > limit ? `${text.slice(0, limit)}...` : text;
@@ -62,6 +65,13 @@ export default function JobOpenings() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
 
+  const [savedJobs, setSavedJobs] = useState<Job[]>([]);
+  const [appliedJobs, setAppliedJobs] = useState<Job[]>([]);
+  const [interviewingJobs, setInterviewingJobs] = useState<Job[]>([]);
+  const [offerJobs, setOfferJobs] = useState<Job[]>([]);
+
+  const [activeTab, setActiveTab] = useState<JobTab>("All Jobs");
+
   const [keyword, setKeyword] = useState("software developer");
   const [location, setLocation] = useState("United States");
 
@@ -74,6 +84,37 @@ export default function JobOpenings() {
 
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+
+  useEffect(() => {
+    const saved = localStorage.getItem("pivotSavedJobs");
+    const applied = localStorage.getItem("pivotAppliedJobs");
+    const interviewing = localStorage.getItem("pivotInterviewingJobs");
+    const offers = localStorage.getItem("pivotOfferJobs");
+
+    setSavedJobs(saved ? JSON.parse(saved) : []);
+    setAppliedJobs(applied ? JSON.parse(applied) : []);
+    setInterviewingJobs(interviewing ? JSON.parse(interviewing) : []);
+    setOfferJobs(offers ? JSON.parse(offers) : []);
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem("pivotSavedJobs", JSON.stringify(savedJobs));
+  }, [savedJobs]);
+
+  useEffect(() => {
+    localStorage.setItem("pivotAppliedJobs", JSON.stringify(appliedJobs));
+  }, [appliedJobs]);
+
+  useEffect(() => {
+    localStorage.setItem(
+      "pivotInterviewingJobs",
+      JSON.stringify(interviewingJobs)
+    );
+  }, [interviewingJobs]);
+
+  useEffect(() => {
+    localStorage.setItem("pivotOfferJobs", JSON.stringify(offerJobs));
+  }, [offerJobs]);
 
   useEffect(() => {
     async function loadJobs() {
@@ -98,8 +139,64 @@ export default function JobOpenings() {
     loadJobs();
   }, [keyword, location]);
 
+  function addJobToList(job: Job, status: JobStatus) {
+    if (status === "Saved") {
+      setSavedJobs((current) =>
+        current.some((item) => item.id === job.id) ? current : [job, ...current]
+      );
+    }
+
+    if (status === "Applied") {
+      setAppliedJobs((current) =>
+        current.some((item) => item.id === job.id) ? current : [job, ...current]
+      );
+    }
+
+    if (status === "Interviewing") {
+      setInterviewingJobs((current) =>
+        current.some((item) => item.id === job.id) ? current : [job, ...current]
+      );
+    }
+
+    if (status === "Offer") {
+      setOfferJobs((current) =>
+        current.some((item) => item.id === job.id) ? current : [job, ...current]
+      );
+    }
+  }
+
+  function removeJobFromCurrentTab(jobId: string) {
+    if (activeTab === "Saved") {
+      setSavedJobs((current) => current.filter((job) => job.id !== jobId));
+    }
+
+    if (activeTab === "Applied") {
+      setAppliedJobs((current) => current.filter((job) => job.id !== jobId));
+    }
+
+    if (activeTab === "Interviewing") {
+      setInterviewingJobs((current) =>
+        current.filter((job) => job.id !== jobId)
+      );
+    }
+
+    if (activeTab === "Offers") {
+      setOfferJobs((current) => current.filter((job) => job.id !== jobId));
+    }
+  }
+
+  function getTabJobs() {
+    if (activeTab === "Saved") return savedJobs;
+    if (activeTab === "Applied") return appliedJobs;
+    if (activeTab === "Interviewing") return interviewingJobs;
+    if (activeTab === "Offers") return offerJobs;
+    return jobs;
+  }
+
+  const tabJobs = getTabJobs();
+
   const filteredJobs = useMemo(() => {
-    return jobs.filter((job) => {
+    return tabJobs.filter((job) => {
       const categoryText = `
         ${job.title}
         ${job.category}
@@ -119,9 +216,10 @@ export default function JobOpenings() {
 
       return matchesCategory && matchesLevel && matchesType;
     });
-  }, [jobs, categoryFilter, levelFilter, typeFilter]);
+  }, [tabJobs, categoryFilter, levelFilter, typeFilter]);
 
   function handleSearch() {
+    setActiveTab("All Jobs");
     setKeyword(searchKeyword);
     setLocation(searchLocation);
   }
@@ -132,35 +230,59 @@ export default function JobOpenings() {
     setTypeFilter("All Types");
   }
 
+  function changeTab(tab: JobTab) {
+    setActiveTab(tab);
+
+    const jobsForTab =
+      tab === "Saved"
+        ? savedJobs
+        : tab === "Applied"
+        ? appliedJobs
+        : tab === "Interviewing"
+        ? interviewingJobs
+        : tab === "Offers"
+        ? offerJobs
+        : jobs;
+
+    setSelectedJob(jobsForTab[0] ?? null);
+  }
+
   const organizedJob = selectedJob
     ? organizeDescription(selectedJob.description)
     : null;
 
   return (
     <main className="jobs-page redesigned-jobs-page">
-      <section className="jobs-hero">
-        <p className="eyebrow">Pivot Tech Connect</p>
-        <h1>Find Your Next Tech Opportunity</h1>
-        <p>
-          Search live software, cybersecurity, data, internship, apprenticeship,
-          remote, and entry-level opportunities.
-        </p>
+      <section className="jobs-top-header">
+        <div className="jobs-brand">
+          <span className="jobs-logo-mark">⚡</span>
+          <strong>Pivot Tech Connect</strong>
+        </div>
+
+        <nav className="jobs-nav-links">
+          <a href="/">Home</a>
+          <a href="/about">About</a>
+          <a href="/resources">Resources</a>
+          <a href="/login">Sign in</a>
+        </nav>
       </section>
 
-      <section className="job-search-card">
-        <div className="job-search-grid">
-          <label>
-            <span>What</span>
+      <section className="indeed-style-search">
+        <div className="indeed-search-bar">
+          <label className="indeed-search-field">
+            <span>🔎</span>
             <input
               type="text"
-              placeholder="Job title, company, or skill"
+              placeholder="Job title, keywords, or company"
               value={searchKeyword}
               onChange={(event) => setSearchKeyword(event.target.value)}
             />
           </label>
 
-          <label>
-            <span>Where</span>
+          <div className="indeed-divider" />
+
+          <label className="indeed-search-field">
+            <span>📍</span>
             <input
               type="text"
               placeholder="City, state, or remote"
@@ -168,9 +290,13 @@ export default function JobOpenings() {
               onChange={(event) => setSearchLocation(event.target.value)}
             />
           </label>
+
+          <button className="indeed-search-btn" onClick={handleSearch}>
+            Search
+          </button>
         </div>
 
-        <div className="job-filter-row">
+        <div className="job-filter-row indeed-filter-row">
           <select
             value={categoryFilter}
             onChange={(event) => setCategoryFilter(event.target.value)}
@@ -198,13 +324,75 @@ export default function JobOpenings() {
             ))}
           </select>
 
-          <button className="search-jobs-btn" onClick={handleSearch}>
-            Search Jobs
-          </button>
-
           <button className="clear-job-filters-btn" onClick={clearFilters}>
             Clear Filters
           </button>
+        </div>
+      </section>
+
+      <section className="job-tabs-row">
+        <button
+          className={activeTab === "All Jobs" ? "job-tab active" : "job-tab"}
+          onClick={() => changeTab("All Jobs")}
+        >
+          All Jobs ({jobs.length})
+        </button>
+
+        <button
+          className={activeTab === "Saved" ? "job-tab active" : "job-tab"}
+          onClick={() => changeTab("Saved")}
+        >
+          Saved ({savedJobs.length})
+        </button>
+
+        <button
+          className={activeTab === "Applied" ? "job-tab active" : "job-tab"}
+          onClick={() => changeTab("Applied")}
+        >
+          Applied ({appliedJobs.length})
+        </button>
+
+        <button
+          className={
+            activeTab === "Interviewing" ? "job-tab active" : "job-tab"
+          }
+          onClick={() => changeTab("Interviewing")}
+        >
+          Interviewing ({interviewingJobs.length})
+        </button>
+
+        <button
+          className={activeTab === "Offers" ? "job-tab active" : "job-tab"}
+          onClick={() => changeTab("Offers")}
+        >
+          Offers ({offerJobs.length})
+        </button>
+      </section>
+
+      <section className="job-stats-row">
+        <div>
+          <span>Total Jobs</span>
+          <strong>{jobs.length}</strong>
+        </div>
+
+        <div>
+          <span>Saved</span>
+          <strong>{savedJobs.length}</strong>
+        </div>
+
+        <div>
+          <span>Applied</span>
+          <strong>{appliedJobs.length}</strong>
+        </div>
+
+        <div>
+          <span>Interviewing</span>
+          <strong>{interviewingJobs.length}</strong>
+        </div>
+
+        <div>
+          <span>Offers</span>
+          <strong>{offerJobs.length}</strong>
         </div>
       </section>
 
@@ -218,8 +406,16 @@ export default function JobOpenings() {
                   : `${filteredJobs.length} jobs found`}
               </h2>
               <p>
-                Results for <strong>{keyword}</strong> in{" "}
-                <strong>{location}</strong>
+                {activeTab === "All Jobs" ? (
+                  <>
+                    Results for <strong>{keyword}</strong> in{" "}
+                    <strong>{location}</strong>
+                  </>
+                ) : (
+                  <>
+                    Showing <strong>{activeTab}</strong> jobs
+                  </>
+                )}
               </p>
             </div>
           </div>
@@ -264,7 +460,7 @@ export default function JobOpenings() {
             {!isLoading && filteredJobs.length === 0 && (
               <div className="empty-jobs-message">
                 <h3>No jobs found</h3>
-                <p>Try changing the keyword, location, or filters.</p>
+                <p>Try changing the keyword, location, filters, or tab.</p>
               </div>
             )}
           </div>
@@ -354,7 +550,7 @@ export default function JobOpenings() {
                 <p>{organizedJob.fullDescription}</p>
               </details>
 
-              <div className="details-action-row">
+              <div className="details-action-row job-tracker-actions">
                 <a
                   className={
                     selectedJob.applyUrl && selectedJob.applyUrl !== "#"
@@ -368,7 +564,42 @@ export default function JobOpenings() {
                   Apply Now
                 </a>
 
-                <button className="save-btn">Save Job</button>
+                <button
+                  className="save-btn"
+                  onClick={() => addJobToList(selectedJob, "Saved")}
+                >
+                  Save Job
+                </button>
+
+                <button
+                  className="status-btn applied-btn"
+                  onClick={() => addJobToList(selectedJob, "Applied")}
+                >
+                  Mark Applied
+                </button>
+
+                <button
+                  className="status-btn interviewing-btn"
+                  onClick={() => addJobToList(selectedJob, "Interviewing")}
+                >
+                  Interviewing
+                </button>
+
+                <button
+                  className="status-btn offer-btn"
+                  onClick={() => addJobToList(selectedJob, "Offer")}
+                >
+                  Offer
+                </button>
+
+                {activeTab !== "All Jobs" && (
+                  <button
+                    className="status-btn remove-btn"
+                    onClick={() => removeJobFromCurrentTab(selectedJob.id)}
+                  >
+                    Remove from {activeTab}
+                  </button>
+                )}
               </div>
             </div>
           ) : (
