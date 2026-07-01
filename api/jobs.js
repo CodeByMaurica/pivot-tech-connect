@@ -39,24 +39,34 @@ export default async function handler(req, res) {
 
     const rawJobs = Array.isArray(data.data?.jobs) ? data.data.jobs : [];
 
-    const jobs = rawJobs.map((job) => ({
-      id: String(job.job_id),
-      title: job.job_title || "Untitled Job",
-      company: job.employer_name || "Unknown Company",
-      location: job.job_location || "Remote",
-      category: "Technology",
-      level: job.job_title?.toLowerCase().includes("senior")
-        ? "Senior Level"
-        : job.job_title?.toLowerCase().includes("junior") ||
-          job.job_title?.toLowerCase().includes("entry")
-        ? "Entry Level"
-        : "Mid Level",
-      type: job.job_employment_type || "Full-time",
-      salary: job.job_salary_string || "",
-      description: job.job_description || "No description available.",
-      applyUrl: job.job_apply_link || job.job_google_link || "#",
-      postedDate: job.job_posted_at || "Recently posted",
-    }));
+    const jobs = rawJobs.map((job) => {
+      const title = job.job_title || "Untitled Job";
+
+      return {
+        id: String(job.job_id || crypto.randomUUID()),
+        title,
+        company: job.employer_name || "Unknown Company",
+        location: job.job_location || "Remote",
+        category: "Technology",
+        level: title.toLowerCase().includes("senior")
+          ? "Senior Level"
+          : title.toLowerCase().includes("junior") ||
+            title.toLowerCase().includes("entry")
+          ? "Entry Level"
+          : "Mid Level",
+        type: job.job_employment_type || "Full-time",
+        salary:
+          job.job_salary_string ||
+          (job.job_min_salary && job.job_max_salary
+            ? `$${Math.round(job.job_min_salary).toLocaleString()} - $${Math.round(
+                job.job_max_salary
+              ).toLocaleString()}`
+            : ""),
+        description: job.job_description || "No description available.",
+        applyUrl: job.job_apply_link || job.job_google_link || "#",
+        postedDate: job.job_posted_at || "Recently posted",
+      };
+    });
 
     return res.status(200).json(jobs);
   } catch (error) {

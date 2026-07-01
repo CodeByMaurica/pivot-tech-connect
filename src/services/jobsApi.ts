@@ -16,12 +16,15 @@ export type Job = {
   applicationStatus?: string;
 };
 
-export async function getRealJobs(searchTerm?: string, location = "United States"): Promise<Job[]> {
- const response = await fetch(
-  `/api/jobs?keyword=${encodeURIComponent(searchTerm || "software developer")}&location=${encodeURIComponent(
-    location
-  )}`
- );
+export async function getRealJobs(
+  searchTerm?: string,
+  location = "United States"
+): Promise<Job[]> {
+  const response = await fetch(
+    `/api/jobs?keyword=${encodeURIComponent(
+      searchTerm || "software developer"
+    )}&location=${encodeURIComponent(location)}`
+  );
 
   if (!response.ok) {
     throw new Error("Failed to load real jobs.");
@@ -29,5 +32,5 @@ export async function getRealJobs(searchTerm?: string, location = "United States
 
   const data = await response.json();
 
-  return data.jobs || [];
+  return Array.isArray(data) ? data : [];
 }
