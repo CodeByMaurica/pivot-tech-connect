@@ -14,8 +14,8 @@ export default async function handler(req, res) {
   const searchQuery = `${keyword} jobs in ${location}`;
 
   const url = `https://jsearch.p.rapidapi.com/search-v2?query=${encodeURIComponent(
-  searchQuery
-)}&num_pages=1&country=us&date_posted=all`;
+    searchQuery
+  )}&page=${page}&num_pages=1&country=us&date_posted=all`;
 
   try {
     const response = await fetch(url, {
@@ -43,7 +43,7 @@ export default async function handler(req, res) {
       const title = job.job_title || "Untitled Job";
 
       return {
-        id: String(job.job_id || crypto.randomUUID()),
+        id: String(job.job_id),
         title,
         company: job.employer_name || "Unknown Company",
         location: job.job_location || "Remote",
@@ -65,10 +65,11 @@ export default async function handler(req, res) {
         description: job.job_description || "No description available.",
         applyUrl: job.job_apply_link || job.job_google_link || "#",
         postedDate: job.job_posted_at || "Recently posted",
+        source: job.job_publisher || "JSearch",
       };
     });
 
-   return res.status(200).json(data);
+    return res.status(200).json(jobs);
   } catch (error) {
     return res.status(500).json({
       error: "Failed to fetch JSearch jobs",
