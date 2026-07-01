@@ -1,6 +1,6 @@
 export default async function handler(req, res) {
-  const keyword = req.query.keyword || "software developer";
-  const location = req.query.location || "United States";
+  const keyword = req.query.keyword || "developer";
+  const location = req.query.location || "chicago";
   const page = req.query.page || "1";
 
   const RAPIDAPI_KEY = process.env.RAPIDAPI_KEY;
@@ -45,7 +45,12 @@ export default async function handler(req, res) {
       company: job.employer_name || "Unknown Company",
       location: job.job_location || "Remote",
       category: "Technology",
-      level: "Entry Level",
+      level: job.job_title?.toLowerCase().includes("senior")
+        ? "Senior Level"
+        : job.job_title?.toLowerCase().includes("junior") ||
+          job.job_title?.toLowerCase().includes("entry")
+        ? "Entry Level"
+        : "Mid Level",
       type: job.job_employment_type || "Full-time",
       salary: job.job_salary_string || "",
       description: job.job_description || "No description available.",
