@@ -1,7 +1,7 @@
 export default async function handler(req, res) {
-  const keyword = req.query.keyword || "";
+  const keyword =
+    req.query.keyword || "software developer cybersecurity data analyst";
   const location = req.query.location || "United States";
-
   const RAPIDAPI_KEY = process.env.RAPIDAPI_KEY;
 
   if (!RAPIDAPI_KEY) {
@@ -10,25 +10,11 @@ export default async function handler(req, res) {
     });
   }
 
-  const defaultSearches = [
-    "software developer",
-    "frontend developer",
-    "react developer",
-    "javascript developer",
-    "full stack developer",
-    "junior software developer",
-    "cybersecurity analyst",
-    "entry level cybersecurity analyst",
-    "soc analyst",
-    "data analyst",
-    "junior data analyst",
-    "software developer internship",
-    "cybersecurity internship",
-    "data analyst internship",
-    "software developer apprenticeship",
-  ];
+  const searchQuery = `${keyword} jobs in ${location}`;
 
-  const searchTerms = keyword ? [keyword, ...defaultSearches] : defaultSearches;
+  const url = `https://jsearch.p.rapidapi.com/search-v2?query=${encodeURIComponent(
+    searchQuery
+  )}&num_pages=20&country=us&date_posted=all&work_from_home=true&employment_types=FULLTIME,CONTRACTOR,PARTTIME,INTERN`;
 
   function getCategory(title = "", description = "") {
     const text = `${title} ${description}`.toLowerCase();
@@ -44,13 +30,11 @@ export default async function handler(req, res) {
     }
 
     if (
-      text.includes("data analyst") ||
-      text.includes("data analytics") ||
-      text.includes("data scientist") ||
+      text.includes("data") ||
+      text.includes("sql") ||
       text.includes("power bi") ||
       text.includes("tableau") ||
-      text.includes("pandas") ||
-      text.includes("sql")
+      text.includes("pandas")
     ) {
       return "Data Analytics";
     }
@@ -63,10 +47,8 @@ export default async function handler(req, res) {
 
     if (
       text.includes("intern") ||
-      text.includes("internship") ||
       text.includes("apprentice") ||
-      text.includes("apprenticeship") ||
-      text.includes("entry level") ||
+      text.includes("entry") ||
       text.includes("junior")
     ) {
       return "Entry Level";
@@ -84,47 +66,28 @@ export default async function handler(req, res) {
     return "Mid Level";
   }
 
-  async function fetchJSearchJobs(searchTerm) {
-    const searchQuery = `${searchTerm} jobs in ${location}`;
-
-    const url = `https://jsearch.p.rapidapi.com/search-v2?query=${encodeURIComponent(
-      searchQuery
-    )}&num_pages=3&country=us&date_posted=all&employment_types=FULLTIME,CONTRACTOR,PARTTIME,INTERN`;
-
-    try {
-      const response = await fetch(url, {
-        method: "GET",
-        headers: {
-          "x-rapidapi-key": RAPIDAPI_KEY,
-          "x-rapidapi-host": "jsearch.p.rapidapi.com",
-        },
-      });
-
-      if (!response.ok) {
-        return [];
-      }
-
-      const data = await response.json();
-
-      return Array.isArray(data.data?.jobs) ? data.data.jobs : [];
-    } catch {
-      return [];
-    }
-  }
-
   try {
-    const jobResults = await Promise.all(searchTerms.map(fetchJSearchJobs));
-    const rawJobs = jobResults.flat();
-
-    const uniqueJobs = new Map();
-
-    rawJobs.forEach((job) => {
-      if (job?.job_id && !uniqueJobs.has(job.job_id)) {
-        uniqueJobs.set(job.job_id, job);
-      }
+    const response = await fetch(url, {
+      method: "GET",
+      headers: {
+        "x-rapidapi-key": RAPIDAPI_KEY,
+        "x-rapidapi-host": "jsearch.p.rapidapi.com",
+      },
     });
 
-    const jobs = Array.from(uniqueJobs.values()).map((job) => {
+    if (!response.ok) {
+      const errorText = await response.text();
+
+      return res.status(response.status).json({
+        error: "JSearch request failed",
+        details: errorText,
+      });
+    }
+
+    const data = await response.json();
+    const rawJobs = Array.isArray(data.data?.jobs) ? data.data.jobs : [];
+
+    const jobs = rawJobs.map((job) => {
       const title = job.job_title || "Untitled Job";
       const description = job.job_description || "No description available.";
 
