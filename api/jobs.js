@@ -13,9 +13,9 @@ export default async function handler(req, res) {
 
   const searchQuery = `${keyword} jobs in ${location}`;
 
-  const url = `https://jsearch.p.rapidapi.com/search-basic?query=${encodeURIComponent(
-    searchQuery
-  )}&page=${page}&num_pages=1&country=us&date_posted=all`;
+  const url = `https://jsearch.p.rapidapi.com/search-v2?query=${encodeURIComponent(
+  searchQuery
+)}&num_pages=1&country=us&date_posted=all`;
 
   try {
     const response = await fetch(url, {
@@ -68,7 +68,7 @@ export default async function handler(req, res) {
       };
     });
 
-    return res.status(200).json(jobs);
+   return res.status(200).json(data);
   } catch (error) {
     return res.status(500).json({
       error: "Failed to fetch JSearch jobs",
