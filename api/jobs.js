@@ -13,7 +13,7 @@ export default async function handler(req, res) {
 
   const searchQuery = `${keyword} jobs in ${location}`;
 
-  const url = `https://jsearch.p.rapidapi.com/search?query=${encodeURIComponent(
+  const url = `https://jsearch.p.rapidapi.com/search-basic?query=${encodeURIComponent(
     searchQuery
   )}&page=${page}&num_pages=1&country=us&date_posted=all`;
 
