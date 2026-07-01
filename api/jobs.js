@@ -1,6 +1,7 @@
 export default async function handler(req, res) {
   const keyword =
     req.query.keyword || "software developer cybersecurity data analyst";
+
   const location = req.query.location || "United States";
   const RAPIDAPI_KEY = process.env.RAPIDAPI_KEY;
 
@@ -10,7 +11,7 @@ export default async function handler(req, res) {
     });
   }
 
-  const searchQuery = `${keyword} jobs in ${location}`;
+    const searchQuery = `${keyword} jobs in ${location}`;
 
   const url = `https://jsearch.p.rapidapi.com/search-v2?query=${encodeURIComponent(
     searchQuery
